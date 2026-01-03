@@ -1,0 +1,208 @@
+:root {
+  --bg-color: #1a1b26;
+  --card-bg: #24283b;
+  --text-primary: #c0caf5;
+  --text-secondary: #9aa5ce;
+  --accent: #7aa2f7;
+  --accent-hover: #5d89e8;
+  --success: #9ece6a;
+  --error: #f7768e;
+  --input-bg: #16161e;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", system-ui, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  display: flex;
+  justify-content: center;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 500px;
+  padding: 20px;
+}
+
+/* --- Header & Menu --- */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.logo h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: 1px;
+  background: linear-gradient(90deg, hsl(221, 89%, 72%), #bb9af7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.menu-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+.menu-btn:hover {
+  color: var(--accent);
+}
+
+/* --- Main Card --- */
+.card {
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  padding: 30px;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* --- File Selection Area --- */
+.file-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.file-display {
+  background-color: var(--input-bg);
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #414868;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  /* Handle long paths */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl; /* Truncate from the left so filename is visible */
+  text-align: left;
+}
+
+.select-btn {
+  background-color: var(--accent);
+  color: #15161e;
+  font-weight: bold;
+  border: none;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.1s, background-color 0.2s;
+}
+.select-btn:hover {
+  background-color: var(--accent-hover);
+}
+.select-btn:active {
+  transform: scale(0.98);
+}
+
+/* --- Input Area --- */
+.input-group input {
+  width: 100%;
+  padding: 12px;
+  background-color: var(--input-bg);
+  border: 1px solid #414868;
+  border-radius: 6px;
+  color: white;
+  font-size: 1rem;
+  outline: none;
+  box-sizing: border-box; /* Fix padding issues */
+}
+.input-group input:focus {
+  border-color: var(--accent);
+}
+
+/* --- Action Buttons --- */
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity 0.2s;
+}
+
+.btn-lock {
+  background-color: #ff9e64; /* A darker, richer orange */
+  color: #1a1b26; /* Dark text */
+  box-shadow: 0 4px 15px rgba(255, 158, 100, 0.3); /* Subtle glow */
+}
+
+.btn-unlock {
+  background-color: #73daca; /* A rich teal/green */
+  color: #1a1b26; /* Dark text */
+  box-shadow: 0 4px 15px rgba(115, 218, 202, 0.3); /* Subtle glow */
+}
+
+/* Add a hover effect to make them feel responsive */
+.action-btn:hover {
+  opacity: 1;
+  transform: translateY(-2px); /* Slight lift */
+  filter: brightness(1.1);
+}
+
+.action-btn:active {
+  transform: translateY(0px);
+}
+
+/* Style for the Paranoid Checkbox (New) */
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.checkbox-container input {
+  accent-color: var(--accent); /* Matches theme */
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* --- Status Bar --- */
+.status-bar {
+  margin-top: 20px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  text-align: center;
+  min-height: 1.2em;
+}
+.status-bar.success {
+  color: var(--success);
+}
+.status-bar.error {
+  color: var(--error);
+}
