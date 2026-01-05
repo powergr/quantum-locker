@@ -1,7 +1,22 @@
 {
   "identifier": "default",
-  "description": "Default capabilities",
+  "description": "Full System Access",
   "local": true,
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:default", "shell:allow-open"]
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "shell:allow-open",
+    "fs:allow-read-dir",
+    "fs:allow-stat",
+    "fs:allow-read-file",
+    "fs:allow-write-file",
+    "core:window:allow-create",
+    "core:window:allow-show",
+    "core:window:allow-close",
+    {
+      "identifier": "fs:scope",
+      "allow": ["**"]
+    }
+  ]
 }

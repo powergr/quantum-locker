@@ -1,4 +1,4 @@
-# QRE Locker (v2.0)
+# QRE Locker (v2.1.1)
 
 **A Stateless, Quantum-Resistant File Encryption Tool.**
 

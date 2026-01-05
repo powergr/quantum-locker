@@ -1,18 +1,28 @@
 mod crypto;
 mod entropy;
 mod secure_rng;
+mod keychain;
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::io::Write; 
+use walkdir::WalkDir; 
+use sysinfo::{Disks}; 
+use uuid::Uuid;
 
 type CommandResult<T> = Result<T, String>;
+
+struct SessionState {
+    master_key: Arc<Mutex<Option<keychain::MasterKey>>>,
+}
 
 const MAX_FILE_SIZE: u64 = 500 * 1024 * 1024; 
 
 fn check_file_size(path: &Path) -> Result<(), String> {
     let metadata = fs::metadata(path).map_err(|_| "File not found".to_string())?;
     if metadata.len() > MAX_FILE_SIZE {
-        return Err(format!("File '{}' too large (>500MB).", path.display()));
+        return Err(format!("File too large (>500MB)."));
     }
     Ok(())
 }
@@ -22,7 +32,10 @@ fn read_keyfile(path_opt: Option<String>) -> Result<Option<Vec<u8>>, String> {
         Some(p) => {
             if p.trim().is_empty() { return Ok(None); }
             let path = Path::new(&p);
-            check_file_size(path)?; 
+            // Relaxed size check for keyfiles
+            if fs::metadata(path).map_err(|e| e.to_string())?.len() > 10 * 1024 * 1024 {
+                return Err("Keyfile too large (>10MB).".to_string());
+            }
             let bytes = fs::read(path).map_err(|e| format!("Failed to read keyfile: {}", e))?;
             Ok(Some(bytes))
         },
@@ -31,37 +44,141 @@ fn read_keyfile(path_opt: Option<String>) -> Result<Option<Vec<u8>>, String> {
 }
 
 fn get_unique_path(original_path: &Path) -> PathBuf {
-    if !original_path.exists() {
-        return original_path.to_path_buf();
-    }
+    if !original_path.exists() { return original_path.to_path_buf(); }
     let file_stem = original_path.file_stem().unwrap_or_default().to_string_lossy();
-    let extension = original_path.extension()
-        .map(|e| format!(".{}", e.to_string_lossy()))
-        .unwrap_or_default();
+    let extension = original_path.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
     let parent = original_path.parent().unwrap_or(Path::new("."));
-
     let mut counter = 1;
     loop {
         let new_name = format!("{} ({}){}", file_stem, counter, extension);
         let new_path = parent.join(new_name);
-        if !new_path.exists() {
-            return new_path;
-        }
+        if !new_path.exists() { return new_path; }
         counter += 1;
     }
 }
 
-// --- BATCH COMMANDS ---
+fn zip_directory(dir_path: &Path, output_path: &Path) -> Result<(), String> {
+    let file = fs::File::create(output_path).map_err(|e| format!("Could not create temp zip: {}", e))?;
+    let mut zip = zip::ZipWriter::new(file);
+    let options = zip::write::FileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .unix_permissions(0o755);
+
+    let prefix = dir_path.parent().unwrap_or(Path::new(""));
+
+    for entry in WalkDir::new(dir_path) {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        
+        let name = path.strip_prefix(prefix)
+            .map_err(|_| "Path error")?
+            .to_str()
+            .ok_or("Non-UTF8 path")?
+            .replace("\\", "/"); // ZIP standard requires forward slashes
+
+        if path.is_file() {
+            zip.start_file(name, options).map_err(|e| e.to_string())?;
+            let buffer = fs::read(path).map_err(|e| e.to_string())?;
+            zip.write_all(&buffer).map_err(|e| e.to_string())?;
+        } else if path.is_dir() && !name.is_empty() {
+            zip.add_directory(name, options).map_err(|e| e.to_string())?;
+        }
+    }
+    zip.finish().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// --- Tauri Commands ---
+
+#[tauri::command]
+fn get_drives() -> Vec<String> {
+    let disks = Disks::new_with_refreshed_list();
+    disks.list().iter()
+        .map(|disk| disk.mount_point().to_string_lossy().to_string())
+        .collect()
+}
+
+#[tauri::command]
+fn check_auth_status(state: tauri::State<SessionState>) -> String {
+    let guard = state.master_key.lock().unwrap();
+    if guard.is_some() {
+        "unlocked".to_string()
+    } else if keychain::keychain_exists() {
+        "locked".to_string()
+    } else {
+        "setup_needed".to_string()
+    }
+}
+
+#[tauri::command]
+fn init_vault(password: String) -> CommandResult<String> {
+    let (recovery_code, _mk) = keychain::init_keychain(&password).map_err(|e| e.to_string())?;
+    Ok(recovery_code)
+}
+
+#[tauri::command]
+fn login(password: String, state: tauri::State<SessionState>) -> CommandResult<String> {
+    let master_key = keychain::unlock_keychain(&password).map_err(|e| e.to_string())?;
+    let mut guard = state.master_key.lock().unwrap();
+    *guard = Some(master_key);
+    Ok("Logged in".to_string())
+}
+
+#[tauri::command]
+fn logout(state: tauri::State<SessionState>) {
+    let mut guard = state.master_key.lock().unwrap();
+    *guard = None;
+}
+
+#[tauri::command]
+fn change_user_password(new_password: String, state: tauri::State<SessionState>) -> CommandResult<String> {
+    let guard = state.master_key.lock().unwrap();
+    let master_key = match &*guard {
+        Some(mk) => mk,
+        None => return Err("Vault is locked.".to_string()),
+    };
+    keychain::change_password(master_key, &new_password).map_err(|e| e.to_string())?;
+    Ok("Password changed successfully.".to_string())
+}
+
+#[tauri::command]
+fn recover_vault(
+    recovery_code: String, 
+    new_password: String, 
+    state: tauri::State<SessionState>
+) -> CommandResult<String> {
+    let master_key = keychain::recover_with_code(&recovery_code, &new_password)
+        .map_err(|e| e.to_string())?;
+    let mut guard = state.master_key.lock().unwrap();
+    *guard = Some(master_key);
+    Ok("Recovery successful. Password updated.".to_string())
+}
+
+#[tauri::command]
+fn regenerate_recovery_code(state: tauri::State<SessionState>) -> CommandResult<String> {
+    let guard = state.master_key.lock().unwrap();
+    let master_key = match &*guard {
+        Some(mk) => mk,
+        None => return Err("Vault is locked. Cannot reset code.".to_string()),
+    };
+    let new_code = keychain::reset_recovery_code(master_key).map_err(|e| e.to_string())?;
+    Ok(new_code)
+}
 
 #[tauri::command]
 async fn lock_file(
-    file_paths: Vec<String>, // <--- CHANGED: List of files
-    password: String, 
+    state: tauri::State<'_, SessionState>,
+    file_paths: Vec<String>, 
     keyfile_path: Option<String>, 
     extra_entropy: Option<Vec<u8>>
 ) -> CommandResult<String> {
     
-    // 1. Prepare Keyfile & Entropy (Once for all files)
+    let guard = state.master_key.lock().unwrap();
+    let master_key = match &*guard {
+        Some(mk) => mk,
+        None => return Err("Vault is locked. Please log in.".to_string()),
+    };
+
     let keyfile_bytes = read_keyfile(keyfile_path)?;
 
     let entropy_seed = if let Some(bytes) = extra_entropy {
@@ -76,92 +193,114 @@ async fn lock_file(
     let mut successes = 0;
     let mut errors = Vec::new();
 
-    // 2. Loop through files
     for file_path in file_paths {
         let path = Path::new(&file_path);
         
-        // Basic validation
-        if let Err(e) = check_file_size(path) {
-            errors.push(format!("{}: {}", path.file_name().unwrap_or_default().to_string_lossy(), e));
+        // --- Directory Handling (Fixed) ---
+        let mut processing_path = path.to_path_buf();
+        let mut is_temp_dir = false;
+        
+        if path.is_dir() {
+            // FIX: Create zip in System Temp, NOT in source folder (avoids Permission Error)
+            let temp_dir = std::env::temp_dir();
+            let folder_name = path.file_name().unwrap_or_default().to_string_lossy();
+            let zip_filename = format!("qre_{}_{}.zip", folder_name, Uuid::new_v4());
+            let zip_path = temp_dir.join(zip_filename);
+
+            if let Err(e) = zip_directory(path, &zip_path) {
+                errors.push(format!("Failed to zip directory {}: {}", folder_name, e));
+                continue;
+            }
+            processing_path = zip_path;
+            is_temp_dir = true;
+        }
+        // ----------------------------------
+
+        if let Err(e) = check_file_size(&processing_path) {
+            errors.push(format!("Size error: {}", e));
+            if is_temp_dir { let _ = fs::remove_file(&processing_path); }
             continue;
         }
 
-        let filename = match path.file_name() {
-            Some(n) => n.to_string_lossy().to_string(),
-            None => { errors.push("Invalid path".to_string()); continue; }
-        };
-
-        match fs::read(path) {
+        let filename = processing_path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        
+        match fs::read(&processing_path) {
             Ok(file_bytes) => {
-                // Encrypt
-                match crypto::encrypt_file_with_password(
-                    &password, 
+                match crypto::encrypt_file_with_master_key(
+                    master_key, 
                     keyfile_bytes.as_deref(), 
                     &filename, 
                     &file_bytes, 
-                    entropy_seed // Use same seed seed logic for batch is acceptable for UX, keys are still unique per file due to internal salts
+                    entropy_seed 
                 ) {
                     Ok(container) => {
                         let output_path = format!("{}.qre", file_path);
+                        
                         if let Err(e) = container.save(&output_path) {
-                            errors.push(format!("Save failed for {}: {}", filename, e));
+                            errors.push(format!("Save error (Check permissions): {}", e));
                         } else {
                             successes += 1;
                         }
                     },
-                    Err(e) => errors.push(format!("Encrypt failed for {}: {}", filename, e)),
+                    Err(e) => errors.push(format!("Encrypt error: {}", e)),
                 }
             },
-            Err(e) => errors.push(format!("Read failed for {}: {}", filename, e)),
+            Err(e) => errors.push(format!("Read error: {}", e)),
+        }
+
+        // Cleanup temp zip
+        if is_temp_dir {
+            let _ = fs::remove_file(&processing_path);
         }
     }
 
     if errors.is_empty() {
-        Ok(format!("Successfully locked {} files.", successes))
+        Ok(format!("Locked {} item(s).", successes))
     } else {
-        // Return summary error
         Err(format!("Processed {}. Errors:\n{}", successes, errors.join("\n")))
     }
 }
 
 #[tauri::command]
 async fn unlock_file(
-    file_paths: Vec<String>, // <--- CHANGED
-    password: String,
+    state: tauri::State<'_, SessionState>,
+    file_paths: Vec<String>, 
     keyfile_path: Option<String>
 ) -> CommandResult<String> {
     
+    let guard = state.master_key.lock().unwrap();
+    let master_key = match &*guard {
+        Some(mk) => mk,
+        None => return Err("Vault is locked. Please log in.".to_string()),
+    };
+
     let keyfile_bytes = read_keyfile(keyfile_path)?;
     let mut successes = 0;
     let mut errors = Vec::new();
 
     for file_path in file_paths {
-        let path = Path::new(&file_path);
-        let filename_display = path.file_name().unwrap_or_default().to_string_lossy();
-
         match crypto::EncryptedFileContainer::load(&file_path) {
             Ok(container) => {
-                match crypto::decrypt_file_with_password(&password, keyfile_bytes.as_deref(), &container) {
+                match crypto::decrypt_file_with_master_key(master_key, keyfile_bytes.as_deref(), &container) {
                     Ok(payload) => {
-                        let parent = path.parent().unwrap_or(Path::new("."));
+                        let parent = Path::new(&file_path).parent().unwrap_or(Path::new("."));
                         let original_path = parent.join(&payload.filename);
                         let final_path = get_unique_path(&original_path);
-
                         if let Err(e) = fs::write(&final_path, &payload.content) {
-                            errors.push(format!("Write failed for {}: {}", filename_display, e));
+                            errors.push(format!("Write error (Check permissions): {}", e));
                         } else {
                             successes += 1;
                         }
                     },
-                    Err(e) => errors.push(format!("Decrypt failed for {}: {}", filename_display, e)),
+                    Err(e) => errors.push(format!("Decrypt error: {}", e)),
                 }
             },
-            Err(e) => errors.push(format!("Load failed for {}: {}", filename_display, e)),
+            Err(e) => errors.push(format!("Load error: {}", e)),
         }
     }
 
     if errors.is_empty() {
-        Ok(format!("Successfully unlocked {} files.", successes))
+        Ok(format!("Unlocked {} files.", successes))
     } else {
         Err(format!("Processed {}. Errors:\n{}", successes, errors.join("\n")))
     }
@@ -170,9 +309,24 @@ async fn unlock_file(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(SessionState { 
+            master_key: Arc::new(Mutex::new(None)) 
+        })
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![lock_file, unlock_file])
+        .plugin(tauri_plugin_fs::init())
+        .invoke_handler(tauri::generate_handler![
+            check_auth_status, 
+            init_vault, 
+            login, 
+            logout, 
+            lock_file, 
+            unlock_file, 
+            recover_vault, 
+            regenerate_recovery_code,
+            change_user_password,
+            get_drives
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
