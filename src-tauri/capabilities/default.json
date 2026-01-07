@@ -1,29 +1,28 @@
 {
-"identifier": "default",
-"description": "Full System Access",
-"local": true,
-"windows": [
-"main"
-],
-"permissions": [
-"core:default",
-"dialog:default",
-"shell:allow-open",
-"clipboard-manager:default",
-"core:window:allow-create",
-"core:window:allow-show",
-"core:window:allow-close",
-"fs:allow-read-dir",
-"fs:allow-read-file",
-"fs:allow-write-file",
-"fs:allow-stat",
-"fs:allow-exists",
-"fs:allow-remove",
-"fs:allow-rename",
+  "identifier": "default",
+  "description": "Full System Access",
+  "local": true,
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "shell:allow-open",
+    "clipboard-manager:default",
+    "core:window:allow-create",
+    "core:window:allow-show",
+    "core:window:allow-close",
 
-{
-  "identifier": "fs:scope",
-  "allow": ["**"]
-}
-]
+    "fs:allow-read-dir",
+    "fs:allow-read-file",
+    "fs:allow-write-file",
+    "fs:allow-stat",
+    "fs:allow-exists",
+    "fs:allow-remove",
+    "fs:allow-rename",
+
+    {
+      "identifier": "fs:scope",
+      "allow": ["**", "$HOME/**", "/**"]
+    }
+  ]
 }
