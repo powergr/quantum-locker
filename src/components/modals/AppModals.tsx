@@ -1,26 +1,39 @@
 import { X, Info, AlertTriangle, Key } from "lucide-react";
 import { getPasswordScore, getStrengthColor } from "../../utils/security";
+import { app } from "@tauri-apps/api";
+import { useEffect, useState } from "react";
 // --- ABOUT MODAL ---
 export function AboutModal({ onClose }: { onClose: () => void }) {
-return (
-<div className="modal-overlay" onClick={onClose}>
-<div className="auth-card" onClick={(e) => e.stopPropagation()}>
-<div className="modal-header">
-<Info size={20} color="var(--accent)" />
-<h2>About QRE Locker</h2>
-<div style={{ flex: 1 }}></div>
-<X size={20} style={{ cursor: "pointer" }} onClick={onClose} />
-</div>
-<div className="modal-body" style={{ textAlign: "center" }}>
-<p><strong>Version 2.2.2</strong></p>
-<p style={{ color: "#aaa", fontSize: "0.9rem" }}>
-Securing your files with AES-256-GCM and Post-Quantum Kyber-1024.
-</p>
-<button className="secondary-btn" onClick={onClose}>Close</button>
-</div>
-</div>
-</div>
-);
+  const [version, setVersion] = useState<string>("");
+
+  useEffect(() => {
+    app.getVersion().then(setVersion);
+  }, []);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="auth-card" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <Info size={20} color="var(--accent)" />
+          <h2>About QRE Locker</h2>
+          <div style={{ flex: 1 }}></div>
+          <X size={20} style={{ cursor: "pointer" }} onClick={onClose} />
+        </div>
+
+        <div className="modal-body" style={{ textAlign: "center" }}>
+          <p><strong>Version {version}</strong></p>
+
+          <p style={{ color: "#aaa", fontSize: "0.9rem" }}>
+            Securing your files with AES-256-GCM and Post-Quantum Kyber-1024.
+          </p>
+
+          <button className="secondary-btn" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 // --- RESET CONFIRM MODAL ---
 export function ResetConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
