@@ -1,15 +1,15 @@
-use serde::{Deserialize, Serialize};
-use zeroize::{Zeroize, ZeroizeOnDrop};
-use anyhow::{Result, anyhow, Context};
 use aes_gcm::{
     aead::{Aead, KeyInit},
-    Aes256Gcm, Nonce
+    Aes256Gcm, Nonce,
 };
-use argon2::{Argon2, PasswordHasher, Params, Algorithm, Version};
-use argon2::password_hash::{SaltString, rand_core::OsRng};
+use anyhow::{anyhow, Context, Result};
+use argon2::password_hash::{rand_core::OsRng, SaltString};
+use argon2::{Algorithm, Argon2, Params, PasswordHasher, Version};
 use rand::RngCore;
-use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::PathBuf;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 const NONCE_LEN: usize = 12;
 
@@ -21,7 +21,7 @@ pub struct MasterKey(pub [u8; 32]);
 #[derive(Serialize, Deserialize, Debug)]
 pub struct KeychainStore {
     pub vault_id: String,
-    
+
     pub password_salt: String,
     pub password_nonce: Vec<u8>,
     pub encrypted_master_key_pass: Vec<u8>,
@@ -45,8 +45,10 @@ fn derive_kek(secret: &str, salt_str: &str) -> [u8; 32] {
     let params = Params::new(19456, 2, 1, Some(32)).unwrap();
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let salt = SaltString::from_b64(salt_str).expect("Invalid salt");
-    
-    let hash = argon2.hash_password(secret.as_bytes(), &salt).expect("Hashing failed");
+
+    let hash = argon2
+        .hash_password(secret.as_bytes(), &salt)
+        .expect("Hashing failed");
     let mut key = [0u8; 32];
     key.copy_from_slice(hash.hash.unwrap().as_bytes());
     key
@@ -68,18 +70,22 @@ pub fn init_keychain(password: &str) -> Result<(String, MasterKey)> {
     let pass_salt = SaltString::generate(&mut OsRng).as_str().to_string();
     let pass_kek = derive_kek(password, &pass_salt);
     let cipher_pass = Aes256Gcm::new_from_slice(&pass_kek).unwrap();
-    
+
     let mut pass_nonce_bytes = [0u8; NONCE_LEN];
     OsRng.fill_bytes(&mut pass_nonce_bytes);
-    
-    let enc_mk_pass = cipher_pass.encrypt(Nonce::from_slice(&pass_nonce_bytes), master_key.0.as_ref())
+
+    let enc_mk_pass = cipher_pass
+        .encrypt(Nonce::from_slice(&pass_nonce_bytes), master_key.0.as_ref())
         .map_err(|e| anyhow!("Failed to encrypt master key: {}", e))?;
 
     // 3. Prepare Recovery Slot
-    let raw_recovery: String = (0..4).map(|_| {
-        let n: u16 = rand::random(); 
-        format!("{:04X}", n)
-    }).collect::<Vec<String>>().join("-");
+    let raw_recovery: String = (0..4)
+        .map(|_| {
+            let n: u16 = rand::random();
+            format!("{:04X}", n)
+        })
+        .collect::<Vec<String>>()
+        .join("-");
     let recovery_code = format!("QRE-{}", raw_recovery);
 
     let rec_salt = SaltString::generate(&mut OsRng).as_str().to_string();
@@ -89,7 +95,8 @@ pub fn init_keychain(password: &str) -> Result<(String, MasterKey)> {
     let mut rec_nonce_bytes = [0u8; NONCE_LEN];
     OsRng.fill_bytes(&mut rec_nonce_bytes);
 
-    let enc_mk_rec = cipher_rec.encrypt(Nonce::from_slice(&rec_nonce_bytes), master_key.0.as_ref())
+    let enc_mk_rec = cipher_rec
+        .encrypt(Nonce::from_slice(&rec_nonce_bytes), master_key.0.as_ref())
         .map_err(|_| anyhow!("Failed to encrypt recovery slot"))?;
 
     // 4. Save
@@ -123,12 +130,13 @@ pub fn unlock_keychain(password: &str) -> Result<MasterKey> {
     let cipher = Aes256Gcm::new_from_slice(&kek).unwrap();
     let nonce = Nonce::from_slice(&store.password_nonce);
 
-    let mk_bytes = cipher.decrypt(nonce, store.encrypted_master_key_pass.as_ref())
+    let mk_bytes = cipher
+        .decrypt(nonce, store.encrypted_master_key_pass.as_ref())
         .map_err(|_| anyhow!("Incorrect Password"))?;
 
     let mut arr = [0u8; 32];
     arr.copy_from_slice(&mk_bytes);
-    
+
     Ok(MasterKey(arr))
 }
 
@@ -143,7 +151,8 @@ pub fn recover_with_code(recovery_code: &str, new_password: &str) -> Result<Mast
     let cipher_rec = Aes256Gcm::new_from_slice(&rec_kek).unwrap();
     let nonce_rec = Nonce::from_slice(&store.recovery_nonce);
 
-    let mk_bytes = cipher_rec.decrypt(nonce_rec, store.encrypted_master_key_recovery.as_ref())
+    let mk_bytes = cipher_rec
+        .decrypt(nonce_rec, store.encrypted_master_key_recovery.as_ref())
         .map_err(|_| anyhow!("Invalid Recovery Code"))?;
 
     let master_key = MasterKey(mk_bytes.clone().try_into().unwrap());
@@ -152,11 +161,15 @@ pub fn recover_with_code(recovery_code: &str, new_password: &str) -> Result<Mast
     let new_pass_salt = SaltString::generate(&mut OsRng).as_str().to_string();
     let new_pass_kek = derive_kek(new_password, &new_pass_salt);
     let cipher_pass = Aes256Gcm::new_from_slice(&new_pass_kek).unwrap();
-    
+
     let mut new_pass_nonce_bytes = [0u8; NONCE_LEN];
     OsRng.fill_bytes(&mut new_pass_nonce_bytes);
-    
-    let new_enc_mk_pass = cipher_pass.encrypt(Nonce::from_slice(&new_pass_nonce_bytes), master_key.0.as_ref())
+
+    let new_enc_mk_pass = cipher_pass
+        .encrypt(
+            Nonce::from_slice(&new_pass_nonce_bytes),
+            master_key.0.as_ref(),
+        )
         .map_err(|e| anyhow!("Failed to encrypt with new password: {}", e))?;
 
     // 3. Update Store
@@ -177,10 +190,13 @@ pub fn reset_recovery_code(master_key: &MasterKey) -> Result<String> {
     let mut store: KeychainStore = serde_json::from_reader(file)?;
 
     // 1. Generate NEW Recovery Code
-    let raw_recovery: String = (0..4).map(|_| {
-        let n: u16 = rand::random(); 
-        format!("{:04X}", n)
-    }).collect::<Vec<String>>().join("-");
+    let raw_recovery: String = (0..4)
+        .map(|_| {
+            let n: u16 = rand::random();
+            format!("{:04X}", n)
+        })
+        .collect::<Vec<String>>()
+        .join("-");
     let recovery_code = format!("QRE-{}", raw_recovery);
 
     // 2. Encrypt Master Key with NEW Code
@@ -192,7 +208,8 @@ pub fn reset_recovery_code(master_key: &MasterKey) -> Result<String> {
     OsRng.fill_bytes(&mut rec_nonce_bytes);
     let rec_nonce = Nonce::from_slice(&rec_nonce_bytes);
 
-    let enc_mk_rec = cipher_rec.encrypt(rec_nonce, master_key.0.as_ref())
+    let enc_mk_rec = cipher_rec
+        .encrypt(rec_nonce, master_key.0.as_ref())
         .map_err(|_| anyhow!("Failed to encrypt recovery slot"))?;
 
     // 3. Update Store
@@ -214,16 +231,20 @@ pub fn change_password(master_key: &MasterKey, new_password: &str) -> Result<()>
 
     // 1. Generate new Salt
     let new_pass_salt = SaltString::generate(&mut OsRng).as_str().to_string();
-    
+
     // 2. Derive new KEK
     let new_pass_kek = derive_kek(new_password, &new_pass_salt);
     let cipher_pass = Aes256Gcm::new_from_slice(&new_pass_kek).unwrap();
-    
+
     // 3. Encrypt existing Master Key with new KEK
     let mut new_pass_nonce_bytes = [0u8; NONCE_LEN];
     OsRng.fill_bytes(&mut new_pass_nonce_bytes);
-    
-    let new_enc_mk_pass = cipher_pass.encrypt(Nonce::from_slice(&new_pass_nonce_bytes), master_key.0.as_ref())
+
+    let new_enc_mk_pass = cipher_pass
+        .encrypt(
+            Nonce::from_slice(&new_pass_nonce_bytes),
+            master_key.0.as_ref(),
+        )
         .map_err(|e| anyhow!("Failed to encrypt with new password: {}", e))?;
 
     // 4. Update Store

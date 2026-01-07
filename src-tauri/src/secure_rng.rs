@@ -26,7 +26,7 @@ impl SecureEngine {
         let mut key = [0u8; 32];
         // FIX: Call our own helper method instead of self.rng directly.
         // This stops the compiler from thinking fill_bytes is "dead code".
-        self.fill_bytes(&mut key); 
+        self.fill_bytes(&mut key);
         key
     }
 }
@@ -35,7 +35,7 @@ impl SecureEngine {
 impl Drop for SecureEngine {
     fn drop(&mut self) {
         // ChaCha20Rng implementation usually handles this, but explicit zeroizing
-        // is good practice if we held the seed directly. 
+        // is good practice if we held the seed directly.
         // Since we don't store the seed after init, we rely on the crate.
         // However, if we stored sensitive state, we would zeroize here.
     }
@@ -66,7 +66,7 @@ mod tests {
         // If we seed with different seeds, outputs MUST differ.
         let seed1 = [1u8; 32];
         let seed2 = [2u8; 32];
-        
+
         let mut eng1 = SecureEngine::new(seed1);
         let mut eng2 = SecureEngine::new(seed2);
 

@@ -1,6 +1,6 @@
 [package]
 name = "qre-gui"
-version = "2.2.1"
+version = "2.2.2"
 description = "QRE Locker"
 authors = ["you"]
 edition = "2021"
@@ -38,3 +38,4 @@ tauri-plugin-fs = "2.4.4"
 sysinfo = "0.30"
 zip = "0.6"
 walkdir = "2" 
+tauri-plugin-clipboard-manager = "2"

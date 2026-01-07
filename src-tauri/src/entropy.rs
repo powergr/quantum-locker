@@ -1,7 +1,7 @@
- #![allow(dead_code)]
+#![allow(dead_code)]
 use rand::rngs::OsRng;
 use rand::RngCore;
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 use std::io::{self, Write};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -12,7 +12,9 @@ pub fn collect_user_entropy() -> [u8; 32] {
     io::stdout().flush().unwrap();
 
     let mut input = String::new();
-    io::stdin().read_line(&mut input).expect("Failed to read line");
+    io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to read line");
 
     let start = SystemTime::now();
     let since_the_epoch = start
