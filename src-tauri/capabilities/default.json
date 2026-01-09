@@ -18,6 +18,11 @@
     "fs:allow-exists",
     "fs:allow-remove",
     "fs:allow-rename",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-is-registered",
+    "global-shortcut:allow-unregister",
+    "process:allow-exit",
+    "process:allow-restart",
 
     {
       "identifier": "fs:scope",

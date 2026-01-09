@@ -43,15 +43,25 @@
       "digestAlgorithm": "sha256",
       "timestampUrl": "",
       "wix": {
-        "language": "en-US"
+        "language": "en-US",
+        "bannerPath": "icons/wix-banner.bmp",
+        "dialogImagePath": "icons/wix-dialog.bmp"
       },
       "nsis": {
         "installMode": "perMachine",
         "languages": ["English"],
         "installerIcon": "icons/icon.ico",
-        "headerImage": "icons/icon.ico",
-        "sidebarImage": "icons/icon.png"
+        "headerImage": "icons/header.bmp",
+        "sidebarImage": "icons/sidebar.bmp"
       }
+    },
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": null,
+      "exceptionDomain": null,
+      "signingIdentity": null,
+      "providerShortName": null,
+      "entitlements": null
     },
     "fileAssociations": [
       {

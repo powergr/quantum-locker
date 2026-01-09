@@ -1,18 +1,46 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { resolve } from "path";
 
-// @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig({
   plugins: [react()],
 
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
-  // 1. prevent Vite from obscuring rust errors
+  resolve: {
+    // FIX: Force resolution of Tauri packages to avoid "undefined" errors
+    alias: {
+      "@tauri-apps/api": resolve(__dirname, "node_modules/@tauri-apps/api"),
+      "@tauri-apps/plugin-shell": resolve(
+        __dirname,
+        "node_modules/@tauri-apps/plugin-shell"
+      ),
+      "@tauri-apps/plugin-dialog": resolve(
+        __dirname,
+        "node_modules/@tauri-apps/plugin-dialog"
+      ),
+      "@tauri-apps/plugin-fs": resolve(
+        __dirname,
+        "node_modules/@tauri-apps/plugin-fs"
+      ),
+      "@tauri-apps/plugin-clipboard-manager": resolve(
+        __dirname,
+        "node_modules/@tauri-apps/plugin-clipboard-manager"
+      ),
+      "@tauri-apps/plugin-global-shortcut": resolve(
+        __dirname,
+        "node_modules/@tauri-apps/plugin-global-shortcut"
+      ),
+      "@tauri-apps/plugin-process": resolve(
+        __dirname,
+        "node_modules/@tauri-apps/plugin-process"
+      ),
+    },
+  },
+
+  // Vite options tailored for Tauri development
   clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
   server: {
     port: 1420,
     strictPort: true,
@@ -25,8 +53,11 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
   },
-}));
+
+  build: {
+    chunkSizeWarningLimit: 3000,
+  },
+});

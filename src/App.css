@@ -49,6 +49,10 @@ body[data-theme="light"] {
   --border: #e0e0e0;
 }
 
+* {
+  box-sizing: border-box; /* Ensure padding/borders don't expand width/height unexpectedly */
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -58,7 +62,7 @@ body {
   height: 100vh;
   overflow: hidden;
   user-select: none;
-  transition: background-color 0.2s, color 0.2s; /* Smooth theme switch */
+  transition: background-color 0.2s, color 0.2s;
 }
 
 /* --- Scrollbar --- */
@@ -120,7 +124,7 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
 }
 .tool-btn:hover {
   background-color: var(--highlight);
-  border-color: var(--border); /* Fixed border color on hover */
+  border-color: var(--border);
 }
 .tool-btn:active {
   transform: translateY(1px);
@@ -160,9 +164,9 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
 
 .path-input {
   flex: 1;
-  background: var(--highlight); /* Changed to var for theming */
+  background: var(--highlight);
   border: 1px solid var(--border);
-  color: var(--text-main); /* Changed to var */
+  color: var(--text-main);
   padding: 6px 10px;
   border-radius: 4px;
   font-family: "Consolas", monospace;
@@ -196,17 +200,15 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
   padding-bottom: 8px;
 }
 
-/* Header Cell Container */
 .header-cell {
   position: relative;
   height: 100%;
   display: flex;
   align-items: center;
   padding-left: 8px;
-  border-right: 1px solid var(--border); /* Changed to var */
+  border-right: 1px solid var(--border);
 }
 
-/* The Draggable Handle */
 .resize-handle {
   position: absolute;
   right: 0;
@@ -227,13 +229,13 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
   padding-bottom: 6px;
   cursor: pointer;
   font-size: 0.9rem;
-  border-bottom: 1px solid var(--highlight); /* Changed to var */
+  border-bottom: 1px solid var(--highlight);
 }
 .file-row:hover {
   background-color: var(--highlight);
 }
 .file-row.selected {
-  background-color: var(--accent); /* Use accent for selection */
+  background-color: var(--accent);
   color: white;
 }
 
@@ -263,7 +265,7 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.6); /* Slightly lighter overlay */
+  background-color: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(5px);
   display: flex;
   align-items: center;
@@ -312,7 +314,7 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
 }
 
 .modal-header {
-  background-color: var(--panel-bg); /* Changed to var */
+  background-color: var(--panel-bg);
   padding: 15px 20px;
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -322,7 +324,7 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
 .modal-header h2 {
   margin: 0;
   font-size: 1.1rem;
-  color: var(--text-main); /* Changed to var */
+  color: var(--text-main);
   font-weight: 600;
 }
 .modal-body {
@@ -334,9 +336,9 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
 
 /* --- Inputs & Buttons --- */
 .auth-input {
-  background-color: var(--highlight); /* Changed to var */
+  background-color: var(--highlight);
   border: 1px solid var(--border);
-  color: var(--text-main); /* Changed to var */
+  color: var(--text-main);
   padding: 10px;
   border-radius: 4px;
   font-size: 1rem;
@@ -348,16 +350,23 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
   outline: none;
 }
 
+/* Shared button styles for alignment */
+.auth-btn,
+.secondary-btn {
+  padding: 10px;
+  font-size: 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  box-sizing: border-box; /* Critical for size matching */
+  margin-top: 5px; /* Consistent margin for both */
+  text-align: center;
+  font-weight: bold;
+}
+
 .auth-btn {
   background-color: var(--accent);
   color: white;
-  border: none;
-  padding: 10px;
-  font-weight: bold;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 5px;
-  font-size: 1rem;
+  border: 1px solid transparent; /* FIX: Invisible border to match secondary */
 }
 .auth-btn:hover {
   filter: brightness(1.1);
@@ -380,11 +389,7 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-main);
-  padding: 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  text-align: center;
-  font-size: 1rem;
+  font-weight: normal;
 }
 .secondary-btn:hover {
   background: var(--highlight);
@@ -457,7 +462,7 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
   font-family: "Consolas", "Monaco", monospace;
   font-size: 1.2rem;
   letter-spacing: 2px;
-  background: #111; /* Keep code black always */
+  background: #111;
   color: #ff9e64;
   padding: 15px;
   border-radius: 6px;
@@ -501,4 +506,61 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
   100% {
     transform: rotate(360deg);
   }
+}
+
+/* --- MARKDOWN STYLING --- */
+.markdown-content {
+  color: var(--text-main);
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+  color: var(--accent);
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.markdown-content h1 {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+  font-size: 1.5rem;
+}
+.markdown-content h2 {
+  font-size: 1.2rem;
+}
+.markdown-content h3 {
+  font-size: 1.1rem;
+  color: var(--text-main);
+}
+
+.markdown-content ul {
+  padding-left: 20px;
+}
+
+.markdown-content li {
+  margin-bottom: 5px;
+}
+
+.markdown-content strong {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.markdown-content code {
+  background: var(--highlight);
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-family: "Consolas", monospace;
+  font-size: 0.85rem;
+  color: #ff9e64;
+}
+
+.markdown-content hr {
+  border: 0;
+  height: 1px;
+  background: var(--border);
+  margin: 20px 0;
 }

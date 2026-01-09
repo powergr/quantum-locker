@@ -14,6 +14,7 @@ import {
   BookOpen,
   Archive,
   Monitor,
+  Download, // Added
 } from "lucide-react";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
 
@@ -34,8 +35,10 @@ interface ToolbarProps {
 
   onChangePassword: () => void;
   onReset2FA: () => void;
-  onTheme: () => void; // Added
+  onTheme: () => void;
   onAbout: () => void;
+  onHelp: () => void;
+  onBackup: () => void; // Added
 }
 
 export function Toolbar(props: ToolbarProps) {
@@ -99,6 +102,16 @@ export function Toolbar(props: ToolbarProps) {
               }}
             >
               <Monitor size={16} /> Theme
+            </div>
+            {/* Added Backup */}
+            <div
+              className="dropdown-item"
+              onClick={() => {
+                setShowMenu(false);
+                props.onBackup();
+              }}
+            >
+              <Download size={16} /> Backup Keychain
             </div>
             <div className="dropdown-divider"></div>
             <div
@@ -179,7 +192,6 @@ export function Toolbar(props: ToolbarProps) {
 
             <div className="dropdown-divider"></div>
 
-            {/* COMPRESSION OPTION */}
             <div
               className="dropdown-item"
               onClick={() => {
@@ -231,7 +243,13 @@ export function Toolbar(props: ToolbarProps) {
         </button>
         {showHelp && (
           <div className="dropdown-menu">
-            <div className="dropdown-item" onClick={() => setShowHelp(false)}>
+            <div
+              className="dropdown-item"
+              onClick={() => {
+                setShowHelp(false);
+                props.onHelp();
+              }}
+            >
               <BookOpen size={16} /> Help Topics
             </div>
             <div

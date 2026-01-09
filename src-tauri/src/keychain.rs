@@ -33,7 +33,8 @@ pub struct KeychainStore {
 
 // --- Logic ---
 
-fn get_keychain_path() -> Result<PathBuf> {
+// CHANGED: Made public (pub) so commands.rs can access it
+pub fn get_keychain_path() -> Result<PathBuf> {
     let proj_dirs = directories::ProjectDirs::from("com", "qre", "locker")
         .ok_or_else(|| anyhow!("Could not determine config directory"))?;
     let config_dir = proj_dirs.config_dir();

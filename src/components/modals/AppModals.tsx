@@ -7,13 +7,218 @@ import {
   Key,
   Trash2,
   Archive,
-  Moon,
-  Sun,
   Monitor,
+  Sun,
+  Moon,
+  XCircle,
+  Download,
+  CheckCircle,
 } from "lucide-react";
 import { getPasswordScore, getStrengthColor } from "../../utils/security";
 
-// --- THEME MODAL (NEW) ---
+// --- INFO MODAL (Success) ---
+export function InfoModal({
+  message,
+  onClose,
+}: {
+  message: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100002 }}>
+      <div className="auth-card" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="modal-header"
+          style={{ borderBottomColor: "var(--btn-success)" }}
+        >
+          <CheckCircle size={20} color="var(--btn-success)" />
+          <h2 style={{ color: "var(--btn-success)" }}>Success</h2>
+          <div style={{ flex: 1 }}></div>
+          <X size={20} style={{ cursor: "pointer" }} onClick={onClose} />
+        </div>
+        <div className="modal-body">
+          <p
+            style={{
+              color: "var(--text-main)",
+              whiteSpace: "pre-wrap",
+              fontSize: "0.9rem",
+              lineHeight: "1.5",
+              textAlign: "center",
+            }}
+          >
+            {message}
+          </p>
+          <div style={{ marginTop: 15 }}>
+            <button
+              className="auth-btn"
+              style={{ width: "100%", background: "var(--btn-success)" }}
+              onClick={onClose}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- BACKUP MODAL ---
+export function BackupModal({
+  onProceed,
+  onCancel,
+}: {
+  onProceed: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="auth-card" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <Download size={20} color="var(--accent)" />
+          <h2>Backup Keychain</h2>
+          <div style={{ flex: 1 }}></div>
+          <X size={20} style={{ cursor: "pointer" }} onClick={onCancel} />
+        </div>
+        <div className="modal-body">
+          <p style={{ color: "var(--text-main)", marginBottom: 10 }}>
+            You are about to export your secure Keychain.
+          </p>
+          <ul
+            style={{
+              color: "var(--text-dim)",
+              fontSize: "0.85rem",
+              paddingLeft: 20,
+              lineHeight: "1.4",
+              marginBottom: 15,
+            }}
+          >
+            <li>Save this file to a safe place (USB Drive, Cloud).</li>
+            <li>If your computer crashes, this file restores access.</li>
+            <li style={{ color: "#ff9e64", marginTop: 5 }}>
+              <strong>WARNING:</strong> You will still need your Master Password
+              to use this backup.
+            </li>
+          </ul>
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              className="auth-btn"
+              style={{ flex: 1 }}
+              onClick={onProceed}
+            >
+              Save Backup...
+            </button>
+            <button
+              className="secondary-btn"
+              style={{ flex: 1 }}
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- ERROR MODAL ---
+export function ErrorModal({
+  message,
+  onClose,
+}: {
+  message: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100002 }}>
+      <div className="auth-card" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="modal-header"
+          style={{ borderBottomColor: "var(--btn-danger)" }}
+        >
+          <XCircle size={20} color="var(--btn-danger)" />
+          <h2 style={{ color: "var(--btn-danger)" }}>Error</h2>
+          <div style={{ flex: 1 }}></div>
+          <X size={20} style={{ cursor: "pointer" }} onClick={onClose} />
+        </div>
+        <div className="modal-body">
+          <p
+            style={{
+              color: "var(--text-main)",
+              whiteSpace: "pre-wrap",
+              overflowWrap: "break-word",
+              fontSize: "0.9rem",
+              lineHeight: "1.5",
+            }}
+          >
+            {message}
+          </p>
+          <div style={{ marginTop: 15 }}>
+            <button
+              className="secondary-btn"
+              style={{ width: "100%" }}
+              onClick={onClose}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- PROCESSING MODAL ---
+export function ProcessingModal({
+  status,
+  percentage,
+}: {
+  status: string;
+  percentage: number;
+}) {
+  return (
+    <div className="modal-overlay" style={{ zIndex: 100000 }}>
+      <div
+        className="auth-card"
+        style={{ width: 350, textAlign: "center", padding: 30 }}
+      >
+        <h3 style={{ marginTop: 0, color: "var(--text-main)" }}>
+          Processing...
+        </h3>
+
+        <p
+          style={{
+            color: "var(--text-dim)",
+            fontSize: "0.9rem",
+            margin: "10px 0",
+            height: "20px",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {status}
+        </p>
+
+        <div className="progress-container">
+          <div
+            className="progress-fill"
+            style={{ width: `${percentage}%` }}
+          ></div>
+        </div>
+        <p
+          style={{ marginTop: 10, fontWeight: "bold", color: "var(--accent)" }}
+        >
+          {percentage}%
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// --- THEME MODAL ---
 interface ThemeModalProps {
   currentTheme: string;
   onSave: (theme: string) => void;
@@ -45,7 +250,6 @@ export function ThemeModal({
           <p style={{ color: "var(--text-main)", marginBottom: 10 }}>
             Select appearance:
           </p>
-
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {options.map((opt) => (
               <div
@@ -79,7 +283,6 @@ export function ThemeModal({
               </div>
             ))}
           </div>
-
           <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
             <button
               className="auth-btn"
@@ -102,79 +305,17 @@ export function ThemeModal({
   );
 }
 
-// --- PROCESSING MODAL ---
-export function ProcessingModal({
-  current,
-  total,
-  filename,
-}: {
-  current: number;
-  total: number;
-  filename?: string;
-}) {
-  const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
-  const displayFile = filename
-    ? filename.length > 30
-      ? "..." + filename.slice(-30)
-      : filename
-    : "Initializing...";
-
-  return (
-    <div className="modal-overlay" style={{ zIndex: 100000 }}>
-      <div
-        className="auth-card"
-        style={{ width: 350, textAlign: "center", padding: 30 }}
-      >
-        <h3 style={{ marginTop: 0, color: "var(--text-main)" }}>
-          Processing...
-        </h3>
-        <p
-          style={{
-            color: "var(--text-dim)",
-            fontSize: "0.85rem",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            margin: "10px 0",
-          }}
-        >
-          {displayFile}
-        </p>
-        <p
-          style={{
-            color: "var(--text-dim)",
-            fontSize: "0.8rem",
-            marginBottom: 5,
-          }}
-        >
-          {current} of {total} files completed
-        </p>
-        <div className="progress-container">
-          <div
-            className="progress-fill"
-            style={{ width: `${percentage}%` }}
-          ></div>
-        </div>
-        <p
-          style={{ marginTop: 10, fontWeight: "bold", color: "var(--accent)" }}
-        >
-          {percentage}%
-        </p>
-      </div>
-    </div>
-  );
-}
-
 // --- DELETE CONFIRM MODAL ---
+interface DeleteConfirmModalProps {
+  items: string[];
+  onConfirm: () => void;
+  onCancel: () => void;
+}
 export function DeleteConfirmModal({
   items,
   onConfirm,
   onCancel,
-}: {
-  items: string[];
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
+}: DeleteConfirmModalProps) {
   const count = items.length;
   const displayName =
     count === 1 ? items[0].split(/[/\\]/).pop() : `${count} items`;
@@ -230,7 +371,6 @@ export function CompressionModal({
   onCancel,
 }: CompressionModalProps) {
   const [selected, setSelected] = useState(current);
-
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div className="auth-card" onClick={(e) => e.stopPropagation()}>
@@ -244,7 +384,6 @@ export function CompressionModal({
           <p style={{ color: "var(--text-main)", marginBottom: 10 }}>
             Select compression level:
           </p>
-
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {[
               {
@@ -290,7 +429,6 @@ export function CompressionModal({
               </div>
             ))}
           </div>
-
           <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
             <button
               className="auth-btn"
@@ -316,7 +454,6 @@ export function CompressionModal({
 // --- ABOUT MODAL ---
 export function AboutModal({ onClose }: { onClose: () => void }) {
   const [appVersion, setAppVersion] = useState("");
-
   useEffect(() => {
     async function loadVer() {
       try {
@@ -328,7 +465,6 @@ export function AboutModal({ onClose }: { onClose: () => void }) {
     }
     loadVer();
   }, []);
-
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="auth-card" onClick={(e) => e.stopPropagation()}>
@@ -445,14 +581,12 @@ export function ChangePassModal({
               </div>
             </div>
           )}
-
           <input
             type="password"
             className="auth-input"
             placeholder="Confirm"
             onChange={(e) => setConfirm(e.target.value)}
           />
-
           <div style={{ display: "flex", gap: 10 }}>
             <button className="auth-btn" style={{ flex: 1 }} onClick={onUpdate}>
               Update
