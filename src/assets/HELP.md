@@ -1,6 +1,6 @@
 # QRE Locker User Manual
 
-## Version 2.2.5
+## Version 2.2.6
 
 ## 📖 Table of Contents
 

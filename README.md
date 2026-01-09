@@ -1,4 +1,4 @@
-# QRE Locker (v2.2.5)
+# QRE Locker (v2.2.6)
 
 **A Modern, Quantum-Resistant File Encryption Tool.**
 
