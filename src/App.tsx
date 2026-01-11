@@ -52,12 +52,9 @@ function App() {
 
       // 2. Process sequentially to prevent UI conflicts
       if (toUnlock.length > 0) {
-        // If we have files to unlock, do that first
         await crypto.runCrypto("unlock_file", toUnlock);
       }
-
       if (toLock.length > 0) {
-        // Then process any files that need locking
         await crypto.runCrypto("lock_file", toLock);
       }
     },
@@ -191,22 +188,21 @@ function App() {
     }
   }
 
-  // --- RENDER ---
+  // --- RENDER LOGIC ---
   if (auth.view === "loading")
     return <div className="auth-overlay">Loading...</div>;
 
-  if (
-    ["setup", "login", "recovery_entry", "recovery_display"].includes(auth.view)
-  ) {
-    return (
-      <>
-        {auth.sessionExpired && (
-          <InfoModal
-            message="Session timed out due to inactivity."
-            onClose={() => auth.setSessionExpired(false)}
-          />
-        )}
+  const isAuthView = [
+    "setup",
+    "login",
+    "recovery_entry",
+    "recovery_display",
+  ].includes(auth.view);
 
+  return (
+    <>
+      {/* 1. AUTH SCREEN */}
+      {isAuthView && (
         <AuthOverlay
           view={auth.view}
           password={auth.password}
@@ -218,6 +214,7 @@ function App() {
           onLogin={async () => {
             const res = await auth.handleLogin();
             if (!res.success) crypto.setErrorMsg(res.msg || "Login failed");
+            else crypto.setErrorMsg(null); // Clear any stale errors
           }}
           onInit={async () => {
             const res = await auth.handleInit();
@@ -232,68 +229,76 @@ function App() {
           onSwitchToRecovery={() => auth.setView("recovery_entry")}
           onCancelRecovery={() => auth.setView("login")}
         />
-      </>
-    );
-  }
+      )}
 
-  return (
-    <div
-      className="main-layout"
-      onContextMenu={(e) => handleContextMenu(e, null)}
-    >
-      <Toolbar
-        onLock={() => crypto.runCrypto("lock_file", fs.selectedPaths)}
-        onUnlock={() => crypto.runCrypto("unlock_file", fs.selectedPaths)}
-        onRefresh={() => fs.loadDir(fs.currentPath)}
-        onLogout={auth.logout}
-        keyFile={crypto.keyFile}
-        setKeyFile={crypto.setKeyFile}
-        selectKeyFile={crypto.selectKeyFile}
-        isParanoid={crypto.isParanoid}
-        setIsParanoid={crypto.setIsParanoid}
-        compressionMode={crypto.compressionMode}
-        onOpenCompression={() => setShowCompression(true)}
-        onChangePassword={() => setShowChangePass(true)}
-        onReset2FA={() => setShowResetConfirm(true)}
-        onTheme={() => setShowThemeModal(true)}
-        onAbout={() => setShowAbout(true)}
-        onHelp={() => setShowHelpModal(true)}
-        onBackup={handleBackupRequest}
-      />
+      {/* 2. DASHBOARD (MAIN LAYOUT) */}
+      {!isAuthView && (
+        <div
+          className="main-layout"
+          onContextMenu={(e) => handleContextMenu(e, null)}
+        >
+          <Toolbar
+            onLock={() => crypto.runCrypto("lock_file", fs.selectedPaths)}
+            onUnlock={() => crypto.runCrypto("unlock_file", fs.selectedPaths)}
+            onRefresh={() => fs.loadDir(fs.currentPath)}
+            onLogout={auth.logout}
+            keyFile={crypto.keyFile}
+            setKeyFile={crypto.setKeyFile}
+            selectKeyFile={crypto.selectKeyFile}
+            isParanoid={crypto.isParanoid}
+            setIsParanoid={crypto.setIsParanoid}
+            compressionMode={crypto.compressionMode}
+            onOpenCompression={() => setShowCompression(true)}
+            onChangePassword={() => setShowChangePass(true)}
+            onReset2FA={() => setShowResetConfirm(true)}
+            onTheme={() => setShowThemeModal(true)}
+            onAbout={() => setShowAbout(true)}
+            onHelp={() => setShowHelpModal(true)}
+            onBackup={handleBackupRequest}
+          />
 
-      <AddressBar currentPath={fs.currentPath} onGoUp={fs.goUp} />
+          <AddressBar
+            currentPath={fs.currentPath}
+            onGoUp={fs.goUp}
+            onNavigate={fs.loadDir}
+          />
 
-      <FileGrid
-        entries={fs.entries}
-        selectedPaths={fs.selectedPaths}
-        onSelect={(path, multi) => {
-          if (multi)
-            fs.setSelectedPaths((prev) =>
-              prev.includes(path)
-                ? prev.filter((p) => p !== path)
-                : [...prev, path]
-            );
-          else fs.setSelectedPaths([path]);
-        }}
-        onNavigate={fs.loadDir}
-        onGoUp={fs.goUp}
-        onContextMenu={handleContextMenu}
-      />
+          <FileGrid
+            entries={fs.entries}
+            selectedPaths={fs.selectedPaths}
+            onSelect={(path, multi) => {
+              if (multi)
+                fs.setSelectedPaths((prev) =>
+                  prev.includes(path)
+                    ? prev.filter((p) => p !== path)
+                    : [...prev, path]
+                );
+              else fs.setSelectedPaths([path]);
+            }}
+            onNavigate={fs.loadDir}
+            onGoUp={fs.goUp}
+            onContextMenu={handleContextMenu}
+          />
 
-      {isDragging && (
-        <div className="drag-overlay">
-          <div className="drag-content">
-            <UploadCloud />
-            <span>Drop to Lock</span>
+          {isDragging && (
+            <div className="drag-overlay">
+              <div className="drag-content">
+                <UploadCloud />
+                <span>Drop to Lock</span>
+              </div>
+            </div>
+          )}
+
+          <div className="status-bar">
+            {fs.statusMsg} | {fs.selectedPaths.length} selected
           </div>
         </div>
       )}
 
-      <div className="status-bar">
-        {fs.statusMsg} | {fs.selectedPaths.length} selected
-      </div>
+      {/* 3. GLOBAL MODALS (Rendered on top of EVERYTHING) */}
 
-      {menuData && (
+      {/* Menu / Context */}
+      {menuData && !isAuthView && (
         <ContextMenu
           x={menuData.x}
           y={menuData.y}
@@ -304,6 +309,7 @@ function App() {
         />
       )}
 
+      {/* Action Modals */}
       {inputModal && (
         <InputModal
           mode={inputModal.mode}
@@ -359,10 +365,18 @@ function App() {
         />
       )}
 
+      {/* Warnings & Security */}
       {auth.showTimeoutWarning && (
         <TimeoutWarningModal
           seconds={auth.countdown}
           onStay={auth.stayLoggedIn}
+        />
+      )}
+
+      {auth.sessionExpired && (
+        <InfoModal
+          message="Session timed out due to inactivity."
+          onClose={() => auth.setSessionExpired(false)}
         />
       )}
 
@@ -398,6 +412,7 @@ function App() {
         />
       )}
 
+      {/* FEEDBACK OVERLAYS (Highest Priority) */}
       {crypto.errorMsg && (
         <ErrorModal
           message={crypto.errorMsg}
@@ -415,7 +430,7 @@ function App() {
           percentage={crypto.progress.percentage}
         />
       )}
-    </div>
+    </>
   );
 }
 

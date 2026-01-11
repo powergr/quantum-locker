@@ -14,7 +14,7 @@ import {
   BookOpen,
   Archive,
   Monitor,
-  Download, // Added
+  Download,
 } from "lucide-react";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
 
@@ -38,7 +38,7 @@ interface ToolbarProps {
   onTheme: () => void;
   onAbout: () => void;
   onHelp: () => void;
-  onBackup: () => void; // Added
+  onBackup: () => void;
 }
 
 export function Toolbar(props: ToolbarProps) {
@@ -71,25 +71,39 @@ export function Toolbar(props: ToolbarProps) {
 
   return (
     <div className="toolbar">
+      {/* LOCK BUTTON - Bold Green Outline */}
       <button className="tool-btn success" onClick={props.onLock}>
-        <Lock />
-        <span>Lock</span>
+        <Lock size={26} color="#16a34a" /* Green-600 */ strokeWidth={2.5} />
+        <span style={{ fontWeight: 600, color: "var(--text-main)" }}>Lock</span>
       </button>
+
+      {/* UNLOCK BUTTON - Bold Red Outline */}
       <button className="tool-btn danger" onClick={props.onUnlock}>
-        <Unlock />
-        <span>Unlock</span>
+        <Unlock size={26} color="#dc2626" /* Red-600 */ strokeWidth={2.5} />
+        <span style={{ fontWeight: 600, color: "var(--text-main)" }}>
+          Unlock
+        </span>
       </button>
+
+      <div
+        style={{
+          width: 1,
+          height: 40,
+          background: "var(--border)",
+          margin: "0 10px",
+        }}
+      ></div>
 
       <div style={{ flex: 1 }}></div>
 
-      {/* 1. Options Menu */}
+      {/* 1. OPTIONS - Standard Theme Color */}
       <div
         className="dropdown-container"
         ref={menuRef}
         style={{ marginRight: 10 }}
       >
         <button className="tool-btn" onClick={() => setShowMenu(!showMenu)}>
-          <Settings />
+          <Settings size={24} className="icon-default" strokeWidth={2} />
           <span>Options</span>
         </button>
         {showMenu && (
@@ -103,7 +117,6 @@ export function Toolbar(props: ToolbarProps) {
             >
               <Monitor size={16} /> Theme
             </div>
-            {/* Added Backup */}
             <div
               className="dropdown-item"
               onClick={() => {
@@ -140,7 +153,7 @@ export function Toolbar(props: ToolbarProps) {
         )}
       </div>
 
-      {/* 2. Advanced Menu */}
+      {/* 2. ADVANCED */}
       <div
         className="dropdown-container"
         ref={advancedRef}
@@ -156,7 +169,7 @@ export function Toolbar(props: ToolbarProps) {
           }`}
           onClick={() => setShowAdvanced(!showAdvanced)}
         >
-          <Sliders />
+          <Sliders size={24} className="icon-default" strokeWidth={2} />
           <span>Advanced</span>
           {(props.keyFile ||
             props.isParanoid ||
@@ -235,10 +248,10 @@ export function Toolbar(props: ToolbarProps) {
         )}
       </div>
 
-      {/* 3. Help Menu */}
+      {/* 3. HELP */}
       <div className="dropdown-container" ref={helpRef}>
         <button className="tool-btn" onClick={() => setShowHelp(!showHelp)}>
-          <CircleHelp />
+          <CircleHelp size={24} className="icon-default" strokeWidth={2} />
           <span>Help</span>
         </button>
         {showHelp && (

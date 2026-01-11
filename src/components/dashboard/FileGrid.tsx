@@ -12,7 +12,6 @@ interface FileGridProps {
   onContextMenu: (e: React.MouseEvent, path: string) => void;
 }
 
-// Define the shape of our column widths
 interface ColWidths {
   name: number;
   type: number;
@@ -27,7 +26,6 @@ export function FileGrid({
   onGoUp,
   onContextMenu,
 }: FileGridProps) {
-  // --- COLUMN RESIZING STATE (PERSISTED) ---
   const [colWidths, setColWidths] = useState<ColWidths>(() => {
     const saved = localStorage.getItem("qre-grid-layout");
     if (saved) {
@@ -37,21 +35,17 @@ export function FileGrid({
         /* ignore corruption */
       }
     }
-    return { name: 300, type: 100, size: 100 };
+    return { name: 350, type: 100, size: 100 };
   });
 
-  // Track which column is being resized (name, type, or size)
   const [isResizing, setIsResizing] = useState<keyof ColWidths | null>(null);
 
-  // Persist changes
   useEffect(() => {
     localStorage.setItem("qre-grid-layout", JSON.stringify(colWidths));
   }, [colWidths]);
 
-  // Calculate grid template string
   const gridTemplate = `30px ${colWidths.name}px ${colWidths.type}px ${colWidths.size}px 1fr`;
 
-  // --- MOUSE HANDLERS FOR RESIZE ---
   const startResize = (col: keyof ColWidths) => (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -64,9 +58,7 @@ export function FileGrid({
     const handleMouseMove = (e: MouseEvent) => {
       setColWidths((prev) => {
         const delta = e.movementX;
-        // Key is safe because isResizing is typed as keyof ColWidths
         const newWidth = prev[isResizing] + delta;
-        // Min width 50px
         return { ...prev, [isResizing]: Math.max(50, newWidth) };
       });
     };
@@ -83,16 +75,12 @@ export function FileGrid({
     };
   }, [isResizing]);
 
-  // --- CONTEXT MENU HANDLER ---
   const handleRightClick = (e: React.MouseEvent, path: string) => {
     e.preventDefault();
     e.stopPropagation();
-
-    // UX Fix: If right-clicking a file NOT in selection, select ONLY that file.
     if (!selectedPaths.includes(path)) {
       onSelect(path, false);
     }
-
     onContextMenu(e, path);
   };
 
@@ -103,29 +91,31 @@ export function FileGrid({
         className="file-header grid-row-layout"
         style={{ gridTemplateColumns: gridTemplate }}
       >
-        <div></div> {/* Icon Col */}
+        <div className="header-cell"></div>
         <div className="header-cell">
-          Name
+          Name{" "}
           <div
             className="resize-handle"
             onMouseDown={startResize("name")}
           ></div>
         </div>
         <div className="header-cell">
-          Type
+          Type{" "}
           <div
             className="resize-handle"
             onMouseDown={startResize("type")}
           ></div>
         </div>
         <div className="header-cell">
-          Size
+          Size{" "}
           <div
             className="resize-handle"
             onMouseDown={startResize("size")}
           ></div>
         </div>
-        <div className="header-cell">Modified</div>
+        <div className="header-cell" style={{ borderRight: "none" }}>
+          Modified
+        </div>
       </div>
 
       {/* GO UP ROW */}
@@ -134,46 +124,65 @@ export function FileGrid({
         onClick={onGoUp}
         style={{ color: "var(--text-dim)", gridTemplateColumns: gridTemplate }}
       >
-        <div className="icon">
+        <div className="grid-cell icon">
           <CornerLeftUp size={16} />
         </div>
-        <div className="name">...</div>
-        <div className="details">Parent</div>
-        <div className="details"></div>
-        <div className="details"></div>
+        <div className="grid-cell name">..</div>
+        <div className="grid-cell details"></div>
+        <div className="grid-cell details"></div>
+        <div
+          className="grid-cell details"
+          style={{ borderRight: "none" }}
+        ></div>
       </div>
 
       {/* ITEMS */}
-      {entries.map((e, i) => (
-        <div
-          key={i}
-          className={`file-row grid-row-layout ${
-            selectedPaths.includes(e.path) ? "selected" : ""
-          }`}
-          style={{ gridTemplateColumns: gridTemplate }}
-          onClick={(ev) => onSelect(e.path, ev.ctrlKey)}
-          onDoubleClick={() => e.isDirectory && onNavigate(e.path)}
-          onContextMenu={(ev) => handleRightClick(ev, e.path)}
-        >
-          <div className="icon">
-            {e.isDrive ? (
-              <HardDrive size={16} stroke="#7aa2f7" />
-            ) : e.isDirectory ? (
-              <Folder size={16} stroke="#e0af68" />
-            ) : (
-              <File size={16} />
-            )}
+      {entries.map((e, i) => {
+        // --- ICON LOGIC (WinRAR Style) ---
+        let IconComp;
+        if (e.isDrive) {
+          // Drive: Silver/Blue
+          IconComp = <HardDrive size={16} stroke="#4a5568" fill="#cbd5e0" />;
+        } else if (e.isDirectory) {
+          // Folder: Classic Yellow
+          IconComp = <Folder size={16} stroke="#b45309" fill="#fcd34d" />;
+        } else {
+          // File: White paper look
+          IconComp = <File size={16} stroke="#4a5568" fill="#f7fafc" />;
+        }
+
+        return (
+          <div
+            key={i}
+            className={`file-row grid-row-layout ${
+              selectedPaths.includes(e.path) ? "selected" : ""
+            }`}
+            style={{ gridTemplateColumns: gridTemplate }}
+            onClick={(ev) => onSelect(e.path, ev.ctrlKey)}
+            onDoubleClick={() => e.isDirectory && onNavigate(e.path)}
+            onContextMenu={(ev) => handleRightClick(ev, e.path)}
+          >
+            <div className="grid-cell icon">{IconComp}</div>
+            <div className="grid-cell name" title={e.name}>
+              {e.name}
+            </div>
+            <div className="grid-cell details">
+              {e.isDirectory
+                ? "Folder"
+                : e.name.split(".").pop()?.toUpperCase()}
+            </div>
+            <div
+              className="grid-cell details"
+              style={{ textAlign: "right", paddingRight: 10 }}
+            >
+              {e.isDirectory ? "" : formatSize(e.size)}
+            </div>
+            <div className="grid-cell details" style={{ borderRight: "none" }}>
+              {formatDate(e.modified)}
+            </div>
           </div>
-          <div className="name" title={e.name}>
-            {e.name}
-          </div>
-          <div className="details">
-            {e.isDirectory ? "Folder" : e.name.split(".").pop()?.toUpperCase()}
-          </div>
-          <div className="details">{formatSize(e.size)}</div>
-          <div className="details">{formatDate(e.modified)}</div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

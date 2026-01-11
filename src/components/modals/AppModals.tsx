@@ -13,8 +13,9 @@ import {
   XCircle,
   Download,
   CheckCircle,
+  Eye,
+  EyeOff,
   FileX,
-  Clock,
 } from "lucide-react";
 import { getPasswordScore, getStrengthColor } from "../../utils/security";
 
@@ -307,17 +308,17 @@ export function ThemeModal({
   );
 }
 
-// --- DELETE CONFIRM MODAL ---
+// --- DELETE CONFIRM MODAL (FIXED) ---
 interface DeleteConfirmModalProps {
   items: string[];
-  onShred: () => void;
-  onTrash: () => void;
+  onTrash: () => void; // Restored
+  onShred: () => void; // Restored
   onCancel: () => void;
 }
 export function DeleteConfirmModal({
   items,
-  onShred,
   onTrash,
+  onShred,
   onCancel,
 }: DeleteConfirmModalProps) {
   const count = items.length;
@@ -338,7 +339,8 @@ export function DeleteConfirmModal({
         <div className="modal-body">
           <p style={{ color: "var(--text-main)", marginBottom: 5 }}>
             How do you want to delete{" "}
-            <strong style={{ color: "white" }}>{displayName}</strong>?
+            <strong style={{ color: "var(--text-main)" }}>{displayName}</strong>
+            ?
           </p>
 
           <div
@@ -571,7 +573,100 @@ export function ResetConfirmModal({
   );
 }
 
-// --- TIMEOUT WARNING MODAL (NEW) ---
+// --- CHANGE PASSWORD MODAL ---
+interface ChangePassProps {
+  pass: string;
+  setPass: (s: string) => void;
+  confirm: string;
+  setConfirm: (s: string) => void;
+  onUpdate: () => void;
+  onCancel: () => void;
+}
+export function ChangePassModal({
+  pass,
+  setPass,
+  setConfirm,
+  onUpdate,
+  onCancel,
+}: ChangePassProps) {
+  const score = getPasswordScore(pass);
+  const [showPass, setShowPass] = useState(false);
+
+  return (
+    <div className="modal-overlay">
+      <div className="auth-card">
+        <div className="modal-header">
+          <Key size={20} color="var(--accent)" />
+          <h2>Change Password</h2>
+        </div>
+        <div className="modal-body">
+          <div className="password-wrapper">
+            <input
+              type={showPass ? "text" : "password"}
+              className="auth-input has-icon"
+              placeholder="New Password"
+              onChange={(e) => setPass(e.target.value)}
+            />
+            <button
+              className="password-toggle"
+              tabIndex={-1}
+              onClick={() => setShowPass(!showPass)}
+              title={showPass ? "Hide Password" : "Show Password"}
+            >
+              {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+
+          {pass && (
+            <div style={{ marginTop: "5px", marginBottom: "5px" }}>
+              <div
+                style={{
+                  height: "4px",
+                  width: "100%",
+                  background: "var(--highlight)",
+                  borderRadius: "2px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${(score + 1) * 20}%`,
+                    background: getStrengthColor(score),
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="password-wrapper">
+            <input
+              type={showPass ? "text" : "password"}
+              className="auth-input has-icon"
+              placeholder="Confirm"
+              onChange={(e) => setConfirm(e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <button className="auth-btn" style={{ flex: 1 }} onClick={onUpdate}>
+              Update
+            </button>
+            <button
+              className="secondary-btn"
+              style={{ flex: 1 }}
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- TIMEOUT WARNING MODAL ---
 export function TimeoutWarningModal({
   seconds,
   onStay,
@@ -589,7 +684,7 @@ export function TimeoutWarningModal({
           className="modal-header"
           style={{ borderBottomColor: "var(--warning)" }}
         >
-          <Clock size={20} color="var(--warning)" />
+          <AlertTriangle size={20} color="var(--warning)" />
           <h2 style={{ color: "var(--warning)" }}>Session Expiring</h2>
         </div>
         <div className="modal-body">
@@ -607,7 +702,7 @@ export function TimeoutWarningModal({
               fontSize: "3rem",
               fontWeight: "bold",
               textAlign: "center",
-              color: "white",
+              color: "var(--text-main)",
               margin: "10px 0",
             }}
           >
@@ -634,83 +729,6 @@ export function TimeoutWarningModal({
               onClick={onStay}
             >
               I'm still here
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// --- CHANGE PASSWORD MODAL ---
-interface ChangePassProps {
-  pass: string;
-  setPass: (s: string) => void;
-  confirm: string;
-  setConfirm: (s: string) => void;
-  onUpdate: () => void;
-  onCancel: () => void;
-}
-export function ChangePassModal({
-  pass,
-  setPass,
-  setConfirm,
-  onUpdate,
-  onCancel,
-}: ChangePassProps) {
-  const score = getPasswordScore(pass);
-  return (
-    <div className="modal-overlay">
-      <div className="auth-card">
-        <div className="modal-header">
-          <Key size={20} color="var(--accent)" />
-          <h2>Change Password</h2>
-        </div>
-        <div className="modal-body">
-          <input
-            type="password"
-            className="auth-input"
-            placeholder="New Password"
-            onChange={(e) => setPass(e.target.value)}
-          />
-
-          {pass && (
-            <div style={{ marginTop: "5px", marginBottom: "5px" }}>
-              <div
-                style={{
-                  height: "4px",
-                  width: "100%",
-                  background: "var(--highlight)",
-                  borderRadius: "2px",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    height: "100%",
-                    width: `${(score + 1) * 20}%`,
-                    background: getStrengthColor(score),
-                  }}
-                />
-              </div>
-            </div>
-          )}
-          <input
-            type="password"
-            className="auth-input"
-            placeholder="Confirm"
-            onChange={(e) => setConfirm(e.target.value)}
-          />
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="auth-btn" style={{ flex: 1 }} onClick={onUpdate}>
-              Update
-            </button>
-            <button
-              className="secondary-btn"
-              style={{ flex: 1 }}
-              onClick={onCancel}
-            >
-              Cancel
             </button>
           </div>
         </div>

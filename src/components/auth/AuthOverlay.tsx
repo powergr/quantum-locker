@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, Copy, Check } from "lucide-react";
+import { Shield, Copy, Check, Eye, EyeOff } from "lucide-react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { ViewState } from "../../types";
 import { getPasswordScore, getStrengthColor } from "../../utils/security";
@@ -24,21 +24,16 @@ export function AuthOverlay(props: AuthOverlayProps) {
   const { view, password, recoveryCode } = props;
   const [copied, setCopied] = useState(false);
 
+  // NEW: State to toggle password visibility
+  const [showPass, setShowPass] = useState(false);
+
   async function handleCopy() {
     try {
-      // 1. Copy Code
       await writeText(recoveryCode);
       setCopied(true);
-
-      // 2. Reset UI button after 2 seconds
       setTimeout(() => setCopied(false), 2000);
-
-      // 3. SECURITY: Clear clipboard after 30 seconds
-      // We don't track this timer because we want it to fire
-      // even if the user navigates away or logs in.
       setTimeout(async () => {
         await writeText("");
-        console.log("Clipboard cleared for security.");
       }, 30000);
     } catch (e) {
       console.error("Clipboard error", e);
@@ -113,7 +108,6 @@ export function AuthOverlay(props: AuthOverlayProps) {
               </button>
             </>
           ) : (
-            // ... Login / Setup / Recovery Entry Forms ...
             <>
               {view === "recovery_entry" && (
                 <input
@@ -123,19 +117,31 @@ export function AuthOverlay(props: AuthOverlayProps) {
                 />
               )}
 
-              <input
-                type="password"
-                className="auth-input"
-                placeholder={
-                  view === "login" ? "Master Password" : "New Password"
-                }
-                value={password}
-                onChange={(e) => props.setPassword(e.target.value)}
-                onKeyDown={(e) =>
-                  e.key === "Enter" &&
-                  (view === "login" ? props.onLogin() : null)
-                }
-              />
+              {/* --- CUSTOM PASSWORD INPUT START --- */}
+              <div className="password-wrapper">
+                <input
+                  type={showPass ? "text" : "password"}
+                  className="auth-input has-icon"
+                  placeholder={
+                    view === "login" ? "Master Password" : "New Password"
+                  }
+                  value={password}
+                  onChange={(e) => props.setPassword(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" &&
+                    (view === "login" ? props.onLogin() : null)
+                  }
+                />
+                <button
+                  className="password-toggle"
+                  tabIndex={-1} // Skip tab selection
+                  onClick={() => setShowPass(!showPass)}
+                  title={showPass ? "Hide Password" : "Show Password"}
+                >
+                  {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              {/* --- CUSTOM PASSWORD INPUT END --- */}
 
               {(view === "setup" || view === "recovery_entry") && (
                 <>
@@ -160,12 +166,25 @@ export function AuthOverlay(props: AuthOverlayProps) {
                       </div>
                     </div>
                   )}
-                  <input
-                    type="password"
-                    className="auth-input"
-                    placeholder="Confirm Password"
-                    onChange={(e) => props.setConfirmPass(e.target.value)}
-                  />
+
+                  {/* --- CONFIRM PASSWORD INPUT START --- */}
+                  <div className="password-wrapper">
+                    <input
+                      type={showPass ? "text" : "password"}
+                      className="auth-input has-icon"
+                      placeholder="Confirm Password"
+                      onChange={(e) => props.setConfirmPass(e.target.value)}
+                    />
+                    {/* Optional: Add eye here too, or let the top eye control both. 
+                         I usually let the top eye control both for cleaner UI. 
+                         If you want separate control, uncomment below. */}
+                    {/*
+                     <button className="password-toggle" onClick={() => setShowPass(!showPass)}>
+                        {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                     </button>
+                     */}
+                  </div>
+                  {/* --- CONFIRM PASSWORD INPUT END --- */}
                 </>
               )}
 
