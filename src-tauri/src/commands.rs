@@ -1,25 +1,33 @@
-use sha2::{Digest, Sha256};
+use tauri::AppHandle;
 use std::fs;
 use std::path::Path;
-use std::process::Command;
 use sysinfo::Disks;
-use tauri::AppHandle; // Needed for entropy hashing
+use std::process::Command;
+use sha2::{Sha256, Digest};
+use serde::Serialize; // Added Serialize
 
-use crate::crypto;
-use crate::keychain;
 use crate::state::SessionState;
 use crate::utils;
+use crate::keychain;
+use crate::crypto;
 
 type CommandResult<T> = Result<T, String>;
+
+// --- STRUCTS ---
+
+#[derive(Serialize)]
+pub struct BatchItemResult {
+    pub name: String,
+    pub success: bool,
+    pub message: String,
+}
 
 // --- AUTH & SYSTEM ---
 
 #[tauri::command]
 pub fn get_drives() -> Vec<String> {
     let disks = Disks::new_with_refreshed_list();
-    disks
-        .list()
-        .iter()
+    disks.list().iter()
         .map(|disk| disk.mount_point().to_string_lossy().to_string())
         .collect()
 }
@@ -27,13 +35,9 @@ pub fn get_drives() -> Vec<String> {
 #[tauri::command]
 pub fn check_auth_status(state: tauri::State<SessionState>) -> String {
     let guard = state.master_key.lock().unwrap();
-    if guard.is_some() {
-        "unlocked".to_string()
-    } else if keychain::keychain_exists() {
-        "locked".to_string()
-    } else {
-        "setup_needed".to_string()
-    }
+    if guard.is_some() { "unlocked".to_string() } 
+    else if keychain::keychain_exists() { "locked".to_string() } 
+    else { "setup_needed".to_string() }
 }
 
 #[tauri::command]
@@ -57,10 +61,7 @@ pub fn logout(state: tauri::State<SessionState>) {
 }
 
 #[tauri::command]
-pub fn change_user_password(
-    new_password: String,
-    state: tauri::State<SessionState>,
-) -> CommandResult<String> {
+pub fn change_user_password(new_password: String, state: tauri::State<SessionState>) -> CommandResult<String> {
     let guard = state.master_key.lock().unwrap();
     let master_key = match &*guard {
         Some(mk) => mk,
@@ -71,13 +72,8 @@ pub fn change_user_password(
 }
 
 #[tauri::command]
-pub fn recover_vault(
-    recovery_code: String,
-    new_password: String,
-    state: tauri::State<SessionState>,
-) -> CommandResult<String> {
-    let master_key =
-        keychain::recover_with_code(&recovery_code, &new_password).map_err(|e| e.to_string())?;
+pub fn recover_vault(recovery_code: String, new_password: String, state: tauri::State<SessionState>) -> CommandResult<String> {
+    let master_key = keychain::recover_with_code(&recovery_code, &new_password).map_err(|e| e.to_string())?;
     let mut guard = state.master_key.lock().unwrap();
     *guard = Some(master_key);
     Ok("Recovery successful. Password updated.".to_string())
@@ -99,14 +95,11 @@ pub fn get_startup_file() -> Option<String> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 {
         let path = args[1].clone();
-        if !path.starts_with("--") {
-            return Some(path);
-        }
+        if !path.starts_with("--") { return Some(path); }
     }
     None
 }
 
-// --- NEW: BACKUP KEYCHAIN ---
 #[tauri::command]
 pub fn export_keychain(save_path: String) -> CommandResult<()> {
     let src = keychain::get_keychain_path().map_err(|e| e.to_string())?;
@@ -120,21 +113,23 @@ pub fn export_keychain(save_path: String) -> CommandResult<()> {
 // --- FILE OPERATIONS ---
 
 #[tauri::command]
-pub async fn delete_items(app: AppHandle, paths: Vec<String>) -> CommandResult<()> {
+pub async fn delete_items(app: AppHandle, paths: Vec<String>) -> CommandResult<Vec<BatchItemResult>> {
     tauri::async_runtime::spawn_blocking(move || {
+        let mut results = Vec::new();
+        
         for path in paths {
             let p = Path::new(&path);
-            let filename = p.file_name().unwrap_or_default().to_string_lossy();
+            let filename = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+            
             utils::emit_progress(&app, &format!("Preparing to shred {}", filename), 0);
-
-            if let Err(e) = utils::shred_recursive(&app, p) {
-                return Err(e);
+            
+            match utils::shred_recursive(&app, p) {
+                Ok(_) => results.push(BatchItemResult { name: filename, success: true, message: "Deleted".into() }),
+                Err(e) => results.push(BatchItemResult { name: filename, success: false, message: e }),
             }
         }
-        Ok(())
-    })
-    .await
-    .map_err(|e| e.to_string())?
+        Ok(results)
+    }).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -155,29 +150,37 @@ pub fn rename_item(path: String, new_name: String) -> CommandResult<()> {
 #[tauri::command]
 pub fn show_in_folder(path: String) -> CommandResult<()> {
     #[cfg(target_os = "windows")]
-    {
-        Command::new("explorer")
-            .args(["/select,", &path])
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    }
+    { Command::new("explorer").args(["/select,", &path]).spawn().map_err(|e| e.to_string())?; }
     #[cfg(target_os = "linux")]
     {
         let p = Path::new(&path);
         let parent = p.parent().unwrap_or(p);
-        Command::new("xdg-open")
-            .arg(parent)
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        Command::new("xdg-open").arg(parent).spawn().map_err(|e| e.to_string())?;
     }
     #[cfg(target_os = "macos")]
-    {
-        Command::new("open")
-            .args(["-R", &path])
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    }
+    { Command::new("open").args(["-R", &path]).spawn().map_err(|e| e.to_string())?; }
     Ok(())
+}
+
+#[tauri::command]
+pub async fn trash_items(app: AppHandle, paths: Vec<String>) -> CommandResult<Vec<BatchItemResult>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut results = Vec::new();
+        
+        for path in paths {
+            let p = Path::new(&path);
+            let filename = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+            
+            // Trash operations are usually instant, but we emit progress just in case
+            utils::emit_progress(&app, &format!("Trashing {}", filename), 50);
+            
+            match utils::move_to_trash(p) {
+                Ok(_) => results.push(BatchItemResult { name: filename, success: true, message: "Moved to Trash".into() }),
+                Err(e) => results.push(BatchItemResult { name: filename, success: false, message: e }),
+            }
+        }
+        Ok(results)
+    }).await.map_err(|e| e.to_string())?
 }
 
 // --- CRYPTO LOGIC ---
@@ -186,11 +189,12 @@ pub fn show_in_folder(path: String) -> CommandResult<()> {
 pub async fn lock_file(
     app: AppHandle,
     state: tauri::State<'_, SessionState>,
-    file_paths: Vec<String>,
-    keyfile_path: Option<String>,
+    file_paths: Vec<String>, 
+    keyfile_path: Option<String>, 
     extra_entropy: Option<Vec<u8>>,
-    compression_mode: Option<String>,
-) -> CommandResult<String> {
+    compression_mode: Option<String> 
+) -> CommandResult<Vec<BatchItemResult>> {
+    
     let master_key = {
         let guard = state.master_key.lock().unwrap();
         match &*guard {
@@ -199,13 +203,12 @@ pub async fn lock_file(
         }
     };
 
-    // FIXED: Use process_keyfile (Streaming) instead of read_keyfile
     let keyfile_hash = utils::process_keyfile(keyfile_path)?;
-
+    
     let compression_level = match compression_mode.as_deref() {
         Some("fast") => 1,
-        Some("best") => 15,
-        _ => 3,
+        Some("best") => 15, 
+        _ => 3, 
     };
 
     let entropy_seed = if let Some(bytes) = extra_entropy {
@@ -217,29 +220,23 @@ pub async fn lock_file(
     };
 
     tauri::async_runtime::spawn_blocking(move || {
-        let mut successes = 0;
-        let mut errors = Vec::new();
+        let mut results = Vec::new();
 
         for file_path in file_paths {
             let path = Path::new(&file_path);
-            let filename = path.file_name().unwrap_or_default().to_string_lossy();
-
+            let filename = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            
             utils::emit_progress(&app, &format!("Processing: {}", filename), 10);
 
             // Use Util for size checking
             if let Err(e) = utils::check_size_limit(path) {
-                errors.push(format!("Check failed: {}", e));
+                results.push(BatchItemResult { name: filename, success: false, message: e });
                 continue;
             }
 
             utils::emit_progress(&app, &format!("Loading: {}", filename), 30);
 
-            let original_name = filename.to_string();
-            let stored_filename = if path.is_dir() {
-                format!("{}.zip", original_name)
-            } else {
-                original_name.clone()
-            };
+            let stored_filename = if path.is_dir() { format!("{}.zip", filename) } else { filename.clone() };
 
             let data_result = if path.is_dir() {
                 utils::zip_directory_to_memory(path)
@@ -250,56 +247,46 @@ pub async fn lock_file(
             match data_result {
                 Ok(file_bytes) => {
                     utils::emit_progress(&app, &format!("Encrypting: {}", filename), 60);
-
+                    
                     match crypto::encrypt_file_with_master_key(
-                        &master_key,
-                        keyfile_hash.as_deref(), // Pass Hash
-                        &stored_filename,
-                        &file_bytes,
+                        &master_key, 
+                        keyfile_hash.as_deref(),
+                        &stored_filename, 
+                        &file_bytes, 
                         entropy_seed,
-                        compression_level,
+                        compression_level 
                     ) {
                         Ok(container) => {
                             utils::emit_progress(&app, &format!("Saving: {}", filename), 90);
-
+                            
                             let raw_output = format!("{}.qre", file_path);
                             let final_path = utils::get_unique_path(Path::new(&raw_output));
                             let final_str = final_path.to_string_lossy().to_string();
 
                             if let Err(e) = container.save(&final_str) {
-                                errors.push(format!("Save error: {}", e));
+                                results.push(BatchItemResult { name: filename, success: false, message: e.to_string() });
                             } else {
-                                successes += 1;
+                                results.push(BatchItemResult { name: filename, success: true, message: "Locked".into() });
                             }
-                        }
-                        Err(e) => errors.push(format!("Encrypt error: {}", e)),
+                        },
+                        Err(e) => results.push(BatchItemResult { name: filename, success: false, message: e.to_string() }),
                     }
-                }
-                Err(e) => errors.push(format!("Read error: {}", e)),
+                },
+                Err(e) => results.push(BatchItemResult { name: filename, success: false, message: e }),
             }
         }
-
-        if errors.is_empty() {
-            Ok(format!("Locked {} item(s).", successes))
-        } else {
-            Err(format!(
-                "Processed {}. Errors:\n{}",
-                successes,
-                errors.join("\n")
-            ))
-        }
-    })
-    .await
-    .map_err(|e| e.to_string())?
+        Ok(results)
+    }).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
 pub async fn unlock_file(
     app: AppHandle,
     state: tauri::State<'_, SessionState>,
-    file_paths: Vec<String>,
-    keyfile_path: Option<String>,
-) -> CommandResult<String> {
+    file_paths: Vec<String>, 
+    keyfile_path: Option<String>
+) -> CommandResult<Vec<BatchItemResult>> {
+    
     let master_key = {
         let guard = state.master_key.lock().unwrap();
         match &*guard {
@@ -308,60 +295,39 @@ pub async fn unlock_file(
         }
     };
 
-    // FIXED: Use process_keyfile
     let keyfile_hash = utils::process_keyfile(keyfile_path)?;
 
     tauri::async_runtime::spawn_blocking(move || {
-        let mut successes = 0;
-        let mut errors = Vec::new();
+        let mut results = Vec::new();
 
         for file_path in file_paths {
             let path = Path::new(&file_path);
-            let filename = path.file_name().unwrap_or_default().to_string_lossy();
+            let filename = path.file_name().unwrap_or_default().to_string_lossy().to_string();
             utils::emit_progress(&app, &format!("Unlocking: {}", filename), 20);
 
             match crypto::EncryptedFileContainer::load(&file_path) {
                 Ok(container) => {
                     utils::emit_progress(&app, &format!("Decrypting: {}", filename), 50);
-
-                    match crypto::decrypt_file_with_master_key(
-                        &master_key,
-                        keyfile_hash.as_deref(),
-                        &container,
-                    ) {
+                    
+                    match crypto::decrypt_file_with_master_key(&master_key, keyfile_hash.as_deref(), &container) {
                         Ok(payload) => {
-                            utils::emit_progress(
-                                &app,
-                                &format!("Writing: {}", payload.filename),
-                                80,
-                            );
-
+                            utils::emit_progress(&app, &format!("Writing: {}", payload.filename), 80);
+                            
                             let parent = Path::new(&file_path).parent().unwrap_or(Path::new("."));
                             let original_path = parent.join(&payload.filename);
                             let final_path = utils::get_unique_path(&original_path);
                             if let Err(e) = fs::write(&final_path, &payload.content) {
-                                errors.push(format!("Write error: {}", e));
+                                results.push(BatchItemResult { name: filename, success: false, message: e.to_string() });
                             } else {
-                                successes += 1;
+                                results.push(BatchItemResult { name: filename, success: true, message: "Unlocked".into() });
                             }
-                        }
-                        Err(e) => errors.push(format!("Decrypt error: {}", e)),
+                        },
+                        Err(e) => results.push(BatchItemResult { name: filename, success: false, message: e.to_string() }),
                     }
-                }
-                Err(e) => errors.push(format!("Load error: {}", e)),
+                },
+                Err(e) => results.push(BatchItemResult { name: filename, success: false, message: e.to_string() }),
             }
         }
-
-        if errors.is_empty() {
-            Ok(format!("Unlocked {} files.", successes))
-        } else {
-            Err(format!(
-                "Processed {}. Errors:\n{}",
-                successes,
-                errors.join("\n")
-            ))
-        }
-    })
-    .await
-    .map_err(|e| e.to_string())?
+        Ok(results)
+    }).await.map_err(|e| e.to_string())?
 }

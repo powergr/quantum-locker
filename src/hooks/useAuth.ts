@@ -5,7 +5,9 @@ import { getPasswordScore } from "../utils/security";
 
 type ActionResult = { success: boolean; msg?: string };
 
-const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 Minutes
+// Configuration
+const WARNING_DELAY_MS = 14 * 60 * 1000; // Show warning after 14 mins
+const COUNTDOWN_SECONDS = 60; // Count down for 60s
 
 export function useAuth() {
   const [view, setView] = useState<ViewState>("loading");
@@ -13,41 +15,80 @@ export function useAuth() {
   const [confirmPass, setConfirmPass] = useState("");
   const [recoveryCode, setRecoveryCode] = useState("");
 
-  // NEW: State to trigger the modal in App.tsx
   const [sessionExpired, setSessionExpired] = useState(false);
 
-  const timerRef = useRef<number | null>(null);
+  // NEW: Warning State
+  const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
+  const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS);
+
+  const idleTimerRef = useRef<number | null>(null);
+  const countdownIntervalRef = useRef<number | null>(null);
 
   // --- AUTO LOCK LOGIC ---
-  useEffect(() => {
-    if (view !== "dashboard") {
-      if (timerRef.current) {
-        window.clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      return;
+
+  // Function to reset the idle timer (called on user activity)
+  const resetIdleTimer = () => {
+    // 1. Clear existing timers
+    if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
+    if (countdownIntervalRef.current)
+      window.clearInterval(countdownIntervalRef.current);
+
+    // 2. Reset State
+    setShowTimeoutWarning(false);
+    setCountdown(COUNTDOWN_SECONDS);
+
+    // 3. Start new Warning Timer
+    if (view === "dashboard") {
+      idleTimerRef.current = window.setTimeout(() => {
+        triggerWarning();
+      }, WARNING_DELAY_MS);
     }
+  };
 
-    const resetTimer = () => {
-      if (timerRef.current) window.clearTimeout(timerRef.current);
+  // Triggered when 14 mins have passed
+  const triggerWarning = () => {
+    setShowTimeoutWarning(true);
 
-      timerRef.current = window.setTimeout(() => {
-        logout();
-        setSessionExpired(true); // Trigger the modal state
-      }, IDLE_TIMEOUT_MS);
-    };
+    // Start countdown tick
+    countdownIntervalRef.current = window.setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          // Time is up!
+          performLogout();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
-    window.addEventListener("mousemove", resetTimer);
-    window.addEventListener("keydown", resetTimer);
-    window.addEventListener("click", resetTimer);
+  const performLogout = () => {
+    if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
+    if (countdownIntervalRef.current)
+      window.clearInterval(countdownIntervalRef.current);
 
-    resetTimer();
+    logout();
+    setShowTimeoutWarning(false);
+    setSessionExpired(true);
+  };
+
+  // Activity Listeners
+  useEffect(() => {
+    if (view !== "dashboard") return;
+
+    window.addEventListener("mousemove", resetIdleTimer);
+    window.addEventListener("keydown", resetIdleTimer);
+    window.addEventListener("click", resetIdleTimer);
+
+    resetIdleTimer(); // Start initial timer
 
     return () => {
-      if (timerRef.current) window.clearTimeout(timerRef.current);
-      window.removeEventListener("mousemove", resetTimer);
-      window.removeEventListener("keydown", resetTimer);
-      window.removeEventListener("click", resetTimer);
+      window.removeEventListener("mousemove", resetIdleTimer);
+      window.removeEventListener("keydown", resetIdleTimer);
+      window.removeEventListener("click", resetIdleTimer);
+      if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
+      if (countdownIntervalRef.current)
+        window.clearInterval(countdownIntervalRef.current);
     };
   }, [view]);
 
@@ -86,7 +127,7 @@ export function useAuth() {
       await invoke("login", { password });
       setPassword("");
       setView("dashboard");
-      setSessionExpired(false); // Reset on new login
+      setSessionExpired(false);
       return { success: true };
     } catch (e) {
       return { success: false, msg: String(e) };
@@ -141,6 +182,7 @@ export function useAuth() {
     await invoke("logout");
     setView("login");
     setPassword("");
+    setShowTimeoutWarning(false);
   }
 
   return {
@@ -153,7 +195,13 @@ export function useAuth() {
     recoveryCode,
     setRecoveryCode,
     sessionExpired,
-    setSessionExpired, // Exported
+    setSessionExpired,
+
+    // Export new state
+    showTimeoutWarning,
+    countdown,
+    stayLoggedIn: resetIdleTimer, // Helper to manually reset
+
     handleInit,
     handleLogin,
     handleRecovery,

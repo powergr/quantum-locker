@@ -1,6 +1,6 @@
 # QRE Locker User Manual
 
-## Version 2.2.6
+## Version 2.3.0
 
 ## 📖 Table of Contents
 
@@ -9,39 +9,51 @@
 - [🚨 Panic Button](#panic-button)
 - [⚙️ Advanced Features](#advanced-features)
 - [🆘 Troubleshooting](#troubleshooting)
+- [⌨️ Shortcuts & Tricks](#shortcuts-tricks)
 
 ---
 
 ## 🚀 Quick Start
 
-QRE Locker secures your files using a hybrid of **AES-256** and **Kyber-1024** (Post-Quantum).
+QRE Locker secures your files using a hybrid of **AES-256** (standard encryption) and **Kyber-1024** (post-quantum encryption).
 
-### Locking & Unlocking
+### 1. Locking Files
 
-1. **Lock:** Drag & Drop files into the window and click **Lock**. The original files are securely wiped and replaced with `.qre` files.
-2. **Unlock:** Select `.qre` files and click **Unlock**.
+1. **Drag & Drop** files or folders into the application window.
+2. Click the green **Lock** button.
+3. Your original files remain untouched (unless you delete them). New `.qre` files are created next to them.
+
+### 2. Unlocking Files
+
+1. Select the `.qre` files you wish to restore.
+2. Click the red **Unlock** button.
+3. The files will be decrypted and restored to their original folder.
 
 ---
 
 ## 💾 Backup & Restore
 
-Your encryption keys are stored in a local **Keychain**. If your computer breaks, you lose access.
+Your **Master Password** unlocks a digital keychain stored on your computer. If your hard drive fails or this file is corrupted, you lose access to **ALL** your files.
 
-### Create a Backup
+### How to Backup
 
 1. Go to **Options > Backup Keychain**.
-2. Save the `QRE_Backup.json` file to a secure USB drive or cloud storage.
+2. Save the `QRE_Backup.json` file to a safe location (USB Drive, Cloud, etc.).
 3. **Note:** This backup is encrypted. You still need your Master Password to use it.
 
-### Restore
+### How to Restore
 
-1. Install QRE Locker on the new computer.
-2. Close the app.
-3. Copy your `QRE_Backup.json` to the config folder:
+If you reinstall your OS or move to a new computer:
+
+1. Install QRE Locker.
+2. Close the application.
+3. Locate the Configuration Folder:
    - **Windows:** `%APPDATA%\qre\locker\config\`
    - **Linux:** `~/.config/qre/locker/`
-4. Rename it to `keychain.json`.
-5. Restart the app.
+   - **macOS:** `~/Library/Application Support/com.qre.locker/`
+4. Copy your `QRE_Backup.json` into this folder.
+5. Rename it to `keychain.json` (replacing any existing file).
+6. Open QRE Locker and log in with your original password.
 
 ---
 
@@ -57,34 +69,41 @@ In an emergency, you can instantly secure the application.
 
 ## ⚙️ Advanced Features
 
-### Keyfiles (2FA)
+### Keyfiles (Two-Factor Authentication)
 
-Acts like a physical key.
+A Keyfile acts like a physical key.
 
 1. Go to **Advanced > Select Keyfile**.
-2. Choose _any_ file. You must have this exact file to unlock your data later.
+2. Choose _any_ file (an image, an MP3, a random document).
+3. **Important:** You must select this **exact same file** to unlock your data later. If you lose or modify the Keyfile, your data is lost forever.
 
-### Zip Options
+### Zip Compression
 
-- **Fast:** Low compression, high speed.
-- **Normal:** Balanced.
-- **Best:** Max compression, slower.
+Located in **Advanced > Zip Options**:
+
+- **Fast:** Minimal compression, fastest speed. Good for videos/images.
+- **Normal:** Default balance.
+- **Best:** Maximum compression (Zstd level 15). Slower, but saves space.
 
 ### Themes
 
-Go to **Options > Theme** to switch between **Dark Mode**, **Light Mode**, or follow your **System** settings.
+Go to **Options > Theme** to switch between **Dark**, **Light**, or **System** modes.
 
 ---
 
 ## 🆘 Troubleshooting
 
 **I forgot my Master Password.**
-Use the **Recovery Code** shown during setup. Click "Forgot Password?" on the login screen.
+Use the **Recovery Code** (e.g., `QRE-XXXX...`) shown during setup.
 
-**"Access Denied"**
-Ensure you have permission to write to the folder and the file is not open in another program.
+1. Click "Forgot Password?" on the login screen.
+2. Enter the code.
+3. Create a new password.
 
----
+## "Access Denied" Errors
+
+- Ensure you have permission to write to the folder.
+- QRE Locker cannot lock system files currently in use by Windows.
 
 **"Validation Tag Mismatch"**
 This means the password or Keyfile is incorrect, or the file is corrupted.
@@ -93,8 +112,10 @@ This means the password or Keyfile is incorrect, or the file is corrupted.
 
 ## ⌨️ Shortcuts & Tricks
 
-**Right Click** any file for a context menu (Rename, Delete, Reveal).
+**Right Click** any file to:
+**Lock/Unlock**
+**Rename**
+**Delete** (Secure Shred or Trash)
+**Reveal in Explorer**
 **Double Click** a folder to open it.
 **Double Click** a `.qre` file in Windows Explorer to open QRE Locker automatically.
-
-> **💡 Privacy Tip:** To hide filenames, put your files into a Folder and lock the Folder. The internal filenames will be completely hidden.

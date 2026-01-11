@@ -61,6 +61,7 @@ pub fn run() {
             commands::export_keychain,
             // File Ops
             commands::delete_items,
+            commands::trash_items,
             commands::create_dir,
             commands::rename_item,
             commands::show_in_folder,

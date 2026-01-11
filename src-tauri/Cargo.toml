@@ -19,7 +19,7 @@ tauri-plugin-process = "2"
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-zip = "2.2.2"
+zip = "2.3.0"
 walkdir = "2"
 aes-gcm = "0.10"
 pqcrypto-kyber = "0.8"
@@ -35,6 +35,7 @@ sysinfo = "0.30"
 uuid = { version = "1.8", features = ["v4"] }
 directories = "5.0"
 argon2 = "0.5"
+trash = "3.2"
 
 # Optimization profiles
 [profile.dev.package."*"]

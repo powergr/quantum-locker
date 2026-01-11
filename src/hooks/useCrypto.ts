@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { generateBrowserEntropy } from "../utils/security";
+import { BatchResult } from "../types"; // Import type
 
 interface ProgressEvent {
   status: string;
@@ -10,19 +11,15 @@ interface ProgressEvent {
 }
 
 export function useCrypto(reloadDir: () => void) {
-  // Settings
   const [keyFile, setKeyFile] = useState<string | null>(null);
   const [isParanoid, setIsParanoid] = useState(false);
   const [compressionMode, setCompressionMode] = useState("normal");
-
-  // Progress State
   const [progress, setProgress] = useState<{
     status: string;
     percentage: number;
   } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Listen for backend progress
   useEffect(() => {
     const unlisten = listen<ProgressEvent>("qre:progress", (event) => {
       setProgress({
@@ -40,13 +37,9 @@ export function useCrypto(reloadDir: () => void) {
     if (typeof selected === "string") setKeyFile(selected);
   }
 
-  // FIXED: Added delay support to handle race conditions
   function clearProgress(delay: number = 0) {
-    if (delay > 0) {
-      setTimeout(() => setProgress(null), delay);
-    } else {
-      setProgress(null);
-    }
+    if (delay > 0) setTimeout(() => setProgress(null), delay);
+    else setProgress(null);
   }
 
   async function runCrypto(
@@ -58,22 +51,35 @@ export function useCrypto(reloadDir: () => void) {
       return;
     }
 
-    // Init Progress
     setProgress({ status: "Preparing...", percentage: 0 });
 
     try {
-      await invoke(cmd, {
+      // Expect Structured Result
+      const results = await invoke<BatchResult[]>(cmd, {
         filePaths: targets,
         keyfilePath: keyFile,
         extraEntropy:
           cmd === "lock_file" ? generateBrowserEntropy(isParanoid) : null,
         compressionMode: cmd === "lock_file" ? compressionMode : null,
       });
+
+      // Analyze Result
+      const failures = results.filter((r) => !r.success);
+      if (failures.length > 0) {
+        // Build readable error report
+        const report = failures
+          .map((f) => `• ${f.name}: ${f.message}`)
+          .join("\n");
+        const successCount = results.length - failures.length;
+        setErrorMsg(
+          `Completed with errors (${successCount} succeeded, ${failures.length} failed):\n\n${report}`
+        );
+      }
+
       reloadDir();
     } catch (e) {
       setErrorMsg(String(e));
     } finally {
-      // Use delay here too for consistency
       clearProgress(500);
     }
   }

@@ -12,6 +12,13 @@ interface FileGridProps {
   onContextMenu: (e: React.MouseEvent, path: string) => void;
 }
 
+// Define the shape of our column widths
+interface ColWidths {
+  name: number;
+  type: number;
+  size: number;
+}
+
 export function FileGrid({
   entries,
   selectedPaths,
@@ -20,28 +27,32 @@ export function FileGrid({
   onGoUp,
   onContextMenu,
 }: FileGridProps) {
-  // --- COLUMN RESIZING STATE ---
-  // Default widths: Icon(30px) Name(40%) Type(15%) Size(15%) Modified(Remaining)
-  // We use percentages or fr units mostly, but for resizing usually pixel widths are safer or specific flex ratios.
-  // Let's use CSS Grid templates.
-  const [colWidths, setColWidths] = useState({
-    name: 300,
-    type: 100,
-    size: 100,
+  // --- COLUMN RESIZING STATE (PERSISTED) ---
+  const [colWidths, setColWidths] = useState<ColWidths>(() => {
+    const saved = localStorage.getItem("qre-grid-layout");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        /* ignore corruption */
+      }
+    }
+    return { name: 300, type: 100, size: 100 };
   });
 
-  const [isResizing, setIsResizing] = useState<string | null>(null);
+  // Track which column is being resized (name, type, or size)
+  const [isResizing, setIsResizing] = useState<keyof ColWidths | null>(null);
+
+  // Persist changes
+  useEffect(() => {
+    localStorage.setItem("qre-grid-layout", JSON.stringify(colWidths));
+  }, [colWidths]);
 
   // Calculate grid template string
-  // Col 1: Icon (fixed 30px)
-  // Col 2: Name (dynamic px)
-  // Col 3: Type (dynamic px)
-  // Col 4: Size (dynamic px)
-  // Col 5: Modified (1fr - takes rest)
   const gridTemplate = `30px ${colWidths.name}px ${colWidths.type}px ${colWidths.size}px 1fr`;
 
   // --- MOUSE HANDLERS FOR RESIZE ---
-  const startResize = (col: string) => (e: React.MouseEvent) => {
+  const startResize = (col: keyof ColWidths) => (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsResizing(col);
@@ -51,11 +62,10 @@ export function FileGrid({
     if (!isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      // Logic relies on movement delta would be complex.
-      // Simpler: Just track X position? No, easier to add movementX
       setColWidths((prev) => {
         const delta = e.movementX;
-        const newWidth = prev[isResizing as keyof typeof prev] + delta;
+        // Key is safe because isResizing is typed as keyof ColWidths
+        const newWidth = prev[isResizing] + delta;
         // Min width 50px
         return { ...prev, [isResizing]: Math.max(50, newWidth) };
       });
@@ -73,18 +83,16 @@ export function FileGrid({
     };
   }, [isResizing]);
 
-  // --- CONTEXT MENU HANDLER (SELECTION FIX) ---
+  // --- CONTEXT MENU HANDLER ---
   const handleRightClick = (e: React.MouseEvent, path: string) => {
     e.preventDefault();
     e.stopPropagation();
 
     // UX Fix: If right-clicking a file NOT in selection, select ONLY that file.
-    // If clicking a file ALREADY in selection, keep selection as is.
     if (!selectedPaths.includes(path)) {
-      onSelect(path, false); // false = single selection (replaces others)
+      onSelect(path, false);
     }
 
-    // Pass event to parent to open menu
     onContextMenu(e, path);
   };
 
@@ -117,17 +125,14 @@ export function FileGrid({
             onMouseDown={startResize("size")}
           ></div>
         </div>
-        <div className="header-cell">
-          Modified
-          {/* Last col usually auto-fills, no resize handle needed on right edge usually */}
-        </div>
+        <div className="header-cell">Modified</div>
       </div>
 
       {/* GO UP ROW */}
       <div
         className="file-row grid-row-layout"
         onClick={onGoUp}
-        style={{ color: "#aaa", gridTemplateColumns: gridTemplate }}
+        style={{ color: "var(--text-dim)", gridTemplateColumns: gridTemplate }}
       >
         <div className="icon">
           <CornerLeftUp size={16} />
@@ -148,7 +153,7 @@ export function FileGrid({
           style={{ gridTemplateColumns: gridTemplate }}
           onClick={(ev) => onSelect(e.path, ev.ctrlKey)}
           onDoubleClick={() => e.isDirectory && onNavigate(e.path)}
-          onContextMenu={(ev) => handleRightClick(ev, e.path)} // UPDATED HANDLER
+          onContextMenu={(ev) => handleRightClick(ev, e.path)}
         >
           <div className="icon">
             {e.isDrive ? (

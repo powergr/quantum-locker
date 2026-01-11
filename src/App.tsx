@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { join } from "@tauri-apps/api/path";
 import { save } from "@tauri-apps/plugin-dialog";
+import { UploadCloud } from "lucide-react";
 import "./App.css";
 
 // Hooks
@@ -9,6 +10,7 @@ import { useTheme } from "./hooks/useTheme";
 import { useAuth } from "./hooks/useAuth";
 import { useFileSystem } from "./hooks/useFileSystem";
 import { useCrypto } from "./hooks/useCrypto";
+import { useDragDrop } from "./hooks/useDragDrop";
 
 // Components
 import { AuthOverlay } from "./components/auth/AuthOverlay";
@@ -29,14 +31,40 @@ import {
   ErrorModal,
   BackupModal,
   InfoModal,
+  TimeoutWarningModal,
 } from "./components/modals/AppModals";
+
+// Types
+import { BatchResult } from "./types";
 
 function App() {
   const { theme, setTheme } = useTheme();
   const auth = useAuth();
   const fs = useFileSystem(auth.view);
-
   const crypto = useCrypto(() => fs.loadDir(fs.currentPath));
+
+  // FIX: Smart Drop Handler
+  const handleDrop = useCallback(
+    async (paths: string[]) => {
+      // 1. Split paths into Lock vs Unlock based on extension
+      const toUnlock = paths.filter((p) => p.endsWith(".qre"));
+      const toLock = paths.filter((p) => !p.endsWith(".qre"));
+
+      // 2. Process sequentially to prevent UI conflicts
+      if (toUnlock.length > 0) {
+        // If we have files to unlock, do that first
+        await crypto.runCrypto("unlock_file", toUnlock);
+      }
+
+      if (toLock.length > 0) {
+        // Then process any files that need locking
+        await crypto.runCrypto("lock_file", toLock);
+      }
+    },
+    [crypto]
+  );
+
+  const { isDragging } = useDragDrop(handleDrop);
 
   // Local UI State
   const [showAbout, setShowAbout] = useState(false);
@@ -97,20 +125,32 @@ function App() {
     if (action === "delete") setItemsToDelete(targets);
   }
 
-  async function performDelete() {
+  async function performDeleteAction(mode: "trash" | "shred") {
     if (!itemsToDelete) return;
 
     crypto.setErrorMsg(null);
+    const targets = [...itemsToDelete];
+    setItemsToDelete(null);
+
+    const command = mode === "shred" ? "delete_items" : "trash_items";
+
     try {
-      await invoke("delete_items", { paths: itemsToDelete });
+      const results = await invoke<BatchResult[]>(command, { paths: targets });
+
+      const failures = results.filter((r) => !r.success);
+      if (failures.length > 0) {
+        const report = failures
+          .map((f) => `• ${f.name}: ${f.message}`)
+          .join("\n");
+        crypto.setErrorMsg(`Operation completed with errors:\n\n${report}`);
+      }
+
       fs.loadDir(fs.currentPath);
       fs.setSelectedPaths([]);
     } catch (e) {
       crypto.setErrorMsg(String(e));
     } finally {
-      // FIX: Add 500ms delay to swallow any trailing events from the backend thread
       crypto.clearProgress(500);
-      setItemsToDelete(null);
     }
   }
 
@@ -160,7 +200,6 @@ function App() {
   ) {
     return (
       <>
-        {/* ADDED: Session Timeout Modal Over Login Screen */}
         {auth.sessionExpired && (
           <InfoModal
             message="Session timed out due to inactivity."
@@ -180,7 +219,6 @@ function App() {
             const res = await auth.handleLogin();
             if (!res.success) crypto.setErrorMsg(res.msg || "Login failed");
           }}
-          // ... rest of props
           onInit={async () => {
             const res = await auth.handleInit();
             if (!res.success) crypto.setErrorMsg(res.msg || "Setup failed");
@@ -188,7 +226,7 @@ function App() {
           onRecovery={async () => {
             const res = await auth.handleRecovery();
             if (!res.success) crypto.setErrorMsg(res.msg || "Recovery failed");
-            else fs.setStatusMsg(res.msg!);
+            else setInfoMsg("Vault recovered successfully.");
           }}
           onAckRecoveryCode={() => auth.setView("dashboard")}
           onSwitchToRecovery={() => auth.setView("recovery_entry")}
@@ -242,6 +280,15 @@ function App() {
         onContextMenu={handleContextMenu}
       />
 
+      {isDragging && (
+        <div className="drag-overlay">
+          <div className="drag-content">
+            <UploadCloud />
+            <span>Drop to Lock</span>
+          </div>
+        </div>
+      )}
+
       <div className="status-bar">
         {fs.statusMsg} | {fs.selectedPaths.length} selected
       </div>
@@ -273,7 +320,8 @@ function App() {
       {itemsToDelete && (
         <DeleteConfirmModal
           items={itemsToDelete}
-          onConfirm={performDelete}
+          onTrash={() => performDeleteAction("trash")}
+          onShred={() => performDeleteAction("shred")}
           onCancel={() => setItemsToDelete(null)}
         />
       )}
@@ -308,6 +356,13 @@ function App() {
         <BackupModal
           onProceed={performBackup}
           onCancel={() => setShowBackupModal(false)}
+        />
+      )}
+
+      {auth.showTimeoutWarning && (
+        <TimeoutWarningModal
+          seconds={auth.countdown}
+          onStay={auth.stayLoggedIn}
         />
       )}
 

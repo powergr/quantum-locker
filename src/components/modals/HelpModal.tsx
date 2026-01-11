@@ -1,23 +1,34 @@
+import React, { useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { X, BookOpen } from "lucide-react";
 // @ts-ignore
 import helpContent from "../../assets/HELP.md?raw";
 
-// Helper to convert "🚀 Quick Start" -> "quick-start"
-function slugify(text: any): string {
-  if (!text) return "";
-  return String(text)
+// 1. Extract raw text from React children (handles bold/italic in headers)
+function extractText(children: any): string {
+  if (typeof children === "string") return children;
+  if (Array.isArray(children)) return children.map(extractText).join("");
+  if (children?.props?.children) return extractText(children.props.children);
+  return "";
+}
+
+// 2. Convert text to ID (Matches the links in HELP.md)
+// Example: "🚀 Quick Start" -> "quick-start"
+function slugify(text: string): string {
+  return text
     .toLowerCase()
-    .replace(/\s+/g, "-") // Replace spaces with -
-    .replace(/[^\w\-]+/g, "") // Remove all non-word chars (emojis, punctuation)
-    .replace(/\-\-+/g, "-") // Replace multiple - with single -
-    .replace(/^-+/, "") // Trim - from start
-    .replace(/-+$/, ""); // Trim - from end
+    .replace(/\s+/g, "-") // Spaces to dashes
+    .replace(/[^\w\-]+/g, "") // Remove emojis and non-word chars
+    .replace(/\-\-+/g, "-") // Collapse multiple dashes
+    .replace(/^-+/, "") // Trim leading dash
+    .replace(/-+$/, ""); // Trim trailing dash
 }
 
 export function HelpModal({ onClose }: { onClose: () => void }) {
-  // Custom logic to handle scrolling inside the modal div
-  const handleScrollTo = (
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // 3. Custom Scroll Logic
+  const handleLinkClick = (
     e: React.MouseEvent<HTMLAnchorElement>,
     href: string
   ) => {
@@ -25,8 +36,15 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
       e.preventDefault();
       const id = href.substring(1);
       const element = document.getElementById(id);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      const container = scrollContainerRef.current;
+
+      if (element && container) {
+        // Calculate position relative to the container
+        const topPos = element.offsetTop - container.offsetTop;
+        container.scrollTo({
+          top: topPos,
+          behavior: "smooth",
+        });
       }
     }
   };
@@ -37,9 +55,9 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
         className="auth-card"
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 600,
+          width: 650,
           maxWidth: "95vw",
-          height: "80vh",
+          height: "85vh",
           display: "flex",
           flexDirection: "column",
         }}
@@ -51,36 +69,51 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
           <X size={20} style={{ cursor: "pointer" }} onClick={onClose} />
         </div>
 
+        {/* Attach Ref to the scrollable container */}
         <div
           className="modal-body"
-          style={{ flex: 1, overflowY: "auto", paddingRight: 10 }}
+          ref={scrollContainerRef}
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            paddingRight: 15,
+            scrollBehavior: "smooth",
+          }}
         >
           <div className="markdown-content">
             <ReactMarkdown
               components={{
-                // Auto-generate IDs for headers so links work
+                // Custom H2 Renderer to attach IDs
                 h2: ({ node, children, ...props }) => {
-                  const id = slugify(children);
+                  const text = extractText(children);
+                  const id = slugify(text);
                   return (
-                    <h2 id={id} {...props}>
+                    <h2 id={id} {...props} style={{ scrollMarginTop: "20px" }}>
                       {children}
                     </h2>
                   );
                 },
+                // Custom H3 Renderer
                 h3: ({ node, children, ...props }) => {
-                  const id = slugify(children);
+                  const text = extractText(children);
+                  const id = slugify(text);
                   return (
-                    <h3 id={id} {...props}>
+                    <h3 id={id} {...props} style={{ scrollMarginTop: "20px" }}>
                       {children}
                     </h3>
                   );
                 },
-                // Intercept links to handle scrolling inside the div
+                // Custom Link Renderer to intercept clicks
                 a: ({ node, href, children, ...props }) => {
                   return (
                     <a
                       href={href}
-                      onClick={(e) => handleScrollTo(e, href || "")}
+                      onClick={(e) => handleLinkClick(e, href || "")}
+                      style={{
+                        cursor: "pointer",
+                        color: "var(--accent)",
+                        textDecoration: "none",
+                      }}
                       {...props}
                     >
                       {children}

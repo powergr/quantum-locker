@@ -1,4 +1,4 @@
-# QRE Locker (v2.2.6)
+# QRE Locker (v2.3.0)
 
 **A Modern, Quantum-Resistant File Encryption Tool.**
 
@@ -6,26 +6,44 @@ QRE Locker is a cross-platform desktop application designed to secure your data 
 
 ![Screenshot](qrev2.jpg)
 
-## 🚀 Key Features
+## 🚀 What's New in v2.3.0?
 
-- **⚡ Native Performance:** Written in **Rust** (Tauri v2) for memory safety and blazing speed.
-- **🛡️ Post-Quantum Crypto:** Uses Kyber-1024 to wrap keys, protecting against future quantum computer attacks.
-- **🚨 Panic Button:** Global hotkey (`Ctrl+Shift+Q`) to instantly wipe keys from RAM and kill the application.
+We have introduced major security and usability upgrades in this release:
+
+- **🚨 Panic Button:** Global hotkey (`Ctrl+Shift+Q`) to instantly wipe keys from RAM and kill the application process.
+- **🗑️ Secure Shredding:** Option to securely overwrite files with random data (3-pass) before deletion, making recovery impossible.
 - **🎨 Themes:** Support for **Dark**, **Light**, and **System** modes.
-- **💾 Secure Backup:** Export your keychain securely to restore access on other devices.
-- **🗑️ Secure Shredding:** Deleting files inside the app overwrites them with random data before unlinking.
-- **🗜️ Smart Compression:** Customizable Zip levels (Fast, Normal, Best).
-- **📂 Folder Support:** Drag and drop entire directories to encrypt them as a single package.
+- **💾 Keychain Backup:** Built-in tool to export your encrypted keychain for disaster recovery.
+- **🖱️ Enhanced UX:** Resizable file columns, right-click context menus, and drag-and-drop file locking.
+- **⏱️ Auto-Lock:** Session timeout after 15 minutes of inactivity.
+- **🗜️ Smart Compression:** Customizable Zip compression levels (Fast, Normal, Best).
+
+## 🛡️ Security Architecture
+
+QRE Locker employs a **Hybrid Cryptographic Scheme** ensuring defense-in-depth:
+
+1. **Session Security:** Every time you lock a file, a unique, ephemeral **AES-256-GCM** key and **ML-KEM-1024** keypair are generated.
+2. **Hybrid Layering:** The file content is compressed (Zstd) and encrypted with AES-256. The AES key is then encapsulated by the Kyber public key.
+3. **Key Wrapping:** The Kyber Private Key (needed to unlock the file) is encrypted using your **Master Key**.
+4. **Master Key Derivation:** Your Master Key is derived from your Passphrase (and optional Keyfile) using **Argon2id** (Memory-Hard Function).
+5. **Memory Safety:** Critical keys are marked with `Zeroize`, ensuring they are wiped from RAM immediately after use.
+
+### The Tech Stack
+
+- **Frontend:** React (TypeScript) + Vite
+- **Backend:** Rust (Tauri v2)
+- **Crypto Libraries:** `pqcrypto-kyber`, `aes-gcm`, `argon2`, `sha2`
+- **Compression:** `zstd` + `zip` (v2.x)
 
 ## 📦 Installation
 
 Download the latest installer for your operating system from the [Releases Page](https://github.com/powergr/quantum-locker/releases).
 
-- **Windows:** `.exe` (Installer)
-- **Linux:** `.deb` or `.AppImage`
+- **Windows:** `.exe` or `.msi`
 - **macOS:** `.dmg`
+- **Linux:** `.deb` or `.AppImage`
 
-> **Note:** As this is open-source software, the installer is self-signed. You may need to click "Run Anyway" if prompted by security filters.
+> **Note:** As this is open-source software, the installer is currently self-signed. You may need to click "More Info" -> "Run Anyway" if Windows SmartScreen prompts you.
 
 ## 📖 User Guide
 
@@ -38,24 +56,24 @@ On first launch, create a **Master Password**.
 
 ### 2. Locking & Unlocking
 
-**Lock:** Drag files into the window or use **Right Click > Lock**. Original files are shredded; encrypted `.qre` files are created.
+**Lock:** Drag files into the window or use **Right Click > Lock**. Original files are processed; encrypted `.qre` files are created.
 **Unlock:** Select `.qre` files and click **Unlock**.
 **Double-Click:** You can double-click a `.qre` file in your OS File Manager to open it directly in QRE Locker.
 
 ### 3. Advanced Security
 
-**Keyfile:** (Optional) Go to **Advanced** to select a file (image/song) as a second factor. You must have this file present to unlock your data.
-**Paranoid Mode:** Injects mouse movement entropy into the key generation.
+**Keyfile:** (Optional) Go to **Advanced** to select a file (image/song) as a second factor. You must have this exact file present to unlock your data.
+**Paranoid Mode:** Injects hardware-based entropy (mouse movements) into the key generation.
 **Panic Button:** Press **`Ctrl + Shift + Q`** at any time to instantly terminate the app and wipe memory.
 
-## 🛠️ Development
+## 🛠️ Development Setup
 
 ### Prerequisites
 
-- Node.js (v18+)
-- Rust (latest stable)
-  **Windows:** C++ Build Tools
-  **Linux:** `libwebkit2gtk-4.1-dev`, `build-essential`
+- [Node.js](https://nodejs.org/) (v18+)
+- [Rust](https://www.rust-lang.org/) (latest stable)
+- **Windows:** C++ Build Tools (via Visual Studio Installer)
+- **Linux:** `libwebkit2gtk-4.1-dev`, `build-essential`
 
 ### Build
 

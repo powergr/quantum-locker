@@ -13,6 +13,8 @@ import {
   XCircle,
   Download,
   CheckCircle,
+  FileX,
+  Clock,
 } from "lucide-react";
 import { getPasswordScore, getStrengthColor } from "../../utils/security";
 
@@ -308,12 +310,14 @@ export function ThemeModal({
 // --- DELETE CONFIRM MODAL ---
 interface DeleteConfirmModalProps {
   items: string[];
-  onConfirm: () => void;
+  onShred: () => void;
+  onTrash: () => void;
   onCancel: () => void;
 }
 export function DeleteConfirmModal({
   items,
-  onConfirm,
+  onShred,
+  onTrash,
   onCancel,
 }: DeleteConfirmModalProps) {
   const count = items.length;
@@ -322,36 +326,75 @@ export function DeleteConfirmModal({
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="auth-card" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="auth-card"
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: 400 }}
+      >
         <div className="modal-header">
           <Trash2 size={20} color="var(--btn-danger)" />
           <h2>Delete {count > 1 ? "Items" : "Item"}</h2>
         </div>
         <div className="modal-body">
-          <p style={{ color: "var(--text-main)" }}>
-            Are you sure you want to permanently delete <br />
-            <strong>{displayName}</strong>?
+          <p style={{ color: "var(--text-main)", marginBottom: 5 }}>
+            How do you want to delete{" "}
+            <strong style={{ color: "white" }}>{displayName}</strong>?
           </p>
-          <p
+
+          <div
             style={{
-              color: "var(--text-dim)",
-              fontSize: "0.8rem",
-              marginTop: "-10px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+              marginTop: 15,
             }}
           >
-            This action cannot be undone.
-          </p>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="auth-btn danger-btn" onClick={onConfirm}>
-              Delete Permanently
-            </button>
+            {/* Option 1: Trash */}
             <button
               className="secondary-btn"
-              style={{ flex: 1 }}
+              onClick={onTrash}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+                padding: 12,
+                borderColor: "var(--border)",
+              }}
+            >
+              <Trash2 size={18} />
+              <span>Move to Trash (Recoverable)</span>
+            </button>
+
+            {/* Option 2: Shred */}
+            <button
+              className="auth-btn danger-btn"
+              onClick={onShred}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+                padding: 12,
+              }}
+            >
+              <FileX size={18} />
+              <span>Secure Shred (Permanent)</span>
+            </button>
+          </div>
+
+          <div style={{ marginTop: 15, textAlign: "center" }}>
+            <span
+              style={{
+                color: "var(--text-dim)",
+                fontSize: "0.8rem",
+                cursor: "pointer",
+                textDecoration: "underline",
+              }}
               onClick={onCancel}
             >
               Cancel
-            </button>
+            </span>
           </div>
         </div>
       </div>
@@ -520,6 +563,77 @@ export function ResetConfirmModal({
               onClick={onCancel}
             >
               Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- TIMEOUT WARNING MODAL (NEW) ---
+export function TimeoutWarningModal({
+  seconds,
+  onStay,
+}: {
+  seconds: number;
+  onStay: () => void;
+}) {
+  return (
+    <div className="modal-overlay" style={{ zIndex: 100001 }}>
+      <div
+        className="auth-card"
+        style={{ width: 400, border: "1px solid var(--warning)" }}
+      >
+        <div
+          className="modal-header"
+          style={{ borderBottomColor: "var(--warning)" }}
+        >
+          <Clock size={20} color="var(--warning)" />
+          <h2 style={{ color: "var(--warning)" }}>Session Expiring</h2>
+        </div>
+        <div className="modal-body">
+          <p
+            style={{
+              color: "var(--text-main)",
+              textAlign: "center",
+              fontSize: "1.1rem",
+            }}
+          >
+            You will be logged out in
+          </p>
+          <div
+            style={{
+              fontSize: "3rem",
+              fontWeight: "bold",
+              textAlign: "center",
+              color: "white",
+              margin: "10px 0",
+            }}
+          >
+            {seconds}
+          </div>
+          <p
+            style={{
+              color: "var(--text-dim)",
+              textAlign: "center",
+              fontSize: "0.9rem",
+            }}
+          >
+            Move your mouse or click below to stay logged in.
+          </p>
+
+          <div style={{ marginTop: 20 }}>
+            <button
+              className="auth-btn"
+              style={{
+                width: "100%",
+                background: "var(--warning)",
+                color: "#000",
+              }}
+              onClick={onStay}
+            >
+              I'm still here
             </button>
           </div>
         </div>

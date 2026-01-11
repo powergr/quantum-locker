@@ -14,3 +14,10 @@ export type ViewState =
   | "recovery_entry"
   | "login"
   | "dashboard";
+
+// NEW
+export interface BatchResult {
+  name: string;
+  success: boolean;
+  message: string;
+}

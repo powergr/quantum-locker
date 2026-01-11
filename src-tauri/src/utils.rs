@@ -34,6 +34,10 @@ pub fn get_dir_size(path: &Path) -> Result<u64, String> {
     Ok(total_size)
 }
 
+pub fn move_to_trash(path: &Path) -> Result<(), String> {
+    trash::delete(path).map_err(|e| e.to_string())
+}
+
 pub fn check_size_limit(path: &Path) -> Result<(), String> {
     let total_size = if path.is_dir() {
         get_dir_size(path)?
