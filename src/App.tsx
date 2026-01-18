@@ -3,6 +3,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import "./App.css";
+import "./styles/components.css";
+import "./styles/dashboard.css";
+import "./components/layout/Sidebar.css";
+import "./components/views/ShredderView.css";
+import "./components/views/VaultView.css";
 
 // Hooks
 import { useTheme } from "./hooks/useTheme";

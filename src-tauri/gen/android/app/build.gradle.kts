@@ -79,7 +79,7 @@ android {
             .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
             .forEach { output ->
                 // Hardcoded 'arm64' because of the ndk filter above
-                output.outputFileName = "QRE-Locker-v${variant.versionName}-arm64.apk"
+                output.outputFileName = "QRE-Privacy-Toolkit-v${variant.versionName}-arm64.apk"
             }
     }
 
