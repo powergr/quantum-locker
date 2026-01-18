@@ -3,6 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use sha2::{Sha256, Digest};
 use std::io::Read; // Needed for reading version headers
+use crate::vault::PasswordVault;
 
 // --- PLATFORM SPECIFIC IMPORTS ---
 // Android does not support standard system commands (like opening Explorer) 
@@ -590,4 +591,65 @@ pub async fn unlock_file(
         }
         Ok(results)
     }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub fn load_password_vault(app: AppHandle, state: tauri::State<SessionState>) -> CommandResult<PasswordVault> {
+    let master_key = {
+        let guard = state.master_key.lock().unwrap();
+        match &*guard {
+            Some(mk) => mk.clone(),
+            None => return Err("Vault is locked".to_string()),
+        }
+    };
+
+    let path = resolve_keychain_path(&app)?.parent().unwrap().join("passwords.qre");
+    
+    if !path.exists() {
+        return Ok(PasswordVault::new()); // Return empty vault if none exists
+    }
+
+    // Load V4 Container
+    let container = crypto::EncryptedFileContainer::load(path.to_str().unwrap())
+        .map_err(|e| e.to_string())?;
+        
+    // Decrypt
+    let payload = crypto::decrypt_file_with_master_key(&master_key, None, &container)
+        .map_err(|e| e.to_string())?;
+
+    // Parse JSON
+    let vault: PasswordVault = serde_json::from_slice(&payload.content)
+        .map_err(|_| "Failed to parse vault data".to_string())?;
+
+    Ok(vault)
+}
+
+#[tauri::command]
+pub fn save_password_vault(
+    app: AppHandle, 
+    state: tauri::State<SessionState>, 
+    vault: PasswordVault
+) -> CommandResult<()> {
+    let master_key = {
+        let guard = state.master_key.lock().unwrap();
+        match &*guard {
+            Some(mk) => mk.clone(),
+            None => return Err("Vault is locked".to_string()),
+        }
+    };
+
+    let path = resolve_keychain_path(&app)?.parent().unwrap().join("passwords.qre");
+    
+    // Serialize Vault to JSON bytes
+    let json_data = serde_json::to_vec(&vault).map_err(|e| e.to_string())?;
+    
+    // Encrypt using V4 engine (Level 3 compression)
+    let container = crypto::encrypt_file_with_master_key(
+        &master_key, None, "passwords.json", &json_data, None, 3
+    ).map_err(|e| e.to_string())?;
+
+    // Write to disk
+    container.save(path.to_str().unwrap()).map_err(|e| e.to_string())?;
+    
+    Ok(())
 }

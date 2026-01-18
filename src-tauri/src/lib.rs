@@ -9,6 +9,7 @@ mod secure_rng;     // Wrappers for Cryptographically Secure Pseudo-Random Numbe
 mod state;          // Holds global application state (like the decrypted Master Key) in RAM.
 mod tests;          // Internal unit tests.
 mod utils;          // General utility functions (File I/O helpers, Shredding logic).
+mod vault;
 
 use state::SessionState;
 use std::sync::{Arc, Mutex};
@@ -128,7 +129,9 @@ pub fn run() {
             
             // Cryptography Core
             commands::lock_file,
-            commands::unlock_file
+            commands::unlock_file,
+            commands::load_password_vault,
+            commands::save_password_vault
         ])
         // Starts the application loop. This blocks the main thread until the app exits.
         .run(tauri::generate_context!())

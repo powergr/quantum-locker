@@ -1,12 +1,12 @@
-# QRE Locker
+# QRE Privacy Toolkit
 
-**Secure, Local-First, Cross-Platform File Encryption.**
+**The Local-First Swiss Army Knife for Digital Privacy.**
 
-![Build Status](https://img.shields.io/github/actions/workflow/status/powergr/quantum-locker/build.yml?branch=main)
+[![Release](https://github.com/powergr/quantum-locker/actions/workflows/build.yml/badge.svg)](https://github.com/powergr/quantum-locker/actions/workflows/build.yml)
 ![Version](https://img.shields.io/github/v/release/powergr/quantum-locker)
 ![License](https://img.shields.io/github/license/powergr/quantum-locker)
 
-QRE Locker is a modern file encryption tool designed for privacy. It runs natively on **Windows, macOS, Linux, and Android**, allowing you to secure your sensitive documents, photos, and videos with a single drag-and-drop action.
+QRE Toolkit is a secure, cross-platform application designed to handle your sensitive data without relying on the cloud. It runs natively on **Windows, macOS, Linux, and Android**.
 
 **[📥 Download the Latest Release](https://github.com/powergr/quantum-locker/releases)**
 
@@ -42,82 +42,61 @@ The exact same encryption engine runs on your Desktop and your **Android Phone**
 
 ---
 
-## 🛡️ Operational Security
+## 🛠️ The Toolkit
 
-QRE Locker includes features designed for high-risk scenarios and physical security:
+### **1. 🔐 File Encryption (Unlimited Size)**
 
-### **🚨 Panic Button (Desktop)**
+Secure any file—photos, tax documents, 50GB video backups—using military-grade **AES-256-GCM**.
+**Streaming Engine:** Encrypts huge files without eating up RAM.
+**Cross-Platform:** Lock a file on your PC, unlock it on your Android phone.
+**Smart Compression:** Automatically compresses documents while skipping media files.
 
-A global "Dead Man's Switch." Pressing **`Ctrl + Shift + Q`** (or `Cmd + Shift + Q` on macOS) instantly kills the application process and wipes encryption keys from RAM. This works even if the app is minimized or in the background.
+### **2. 🗑️ Secure Shredder (Desktop)**
 
-### **⏱️ Auto-Lock**
+When you delete a file, the data remains on your disk. The Shredder overwrites your files with random noise before deleting them, making recovery impossible.
+_(Note: On Android, this performs a standard delete due to hardware limitations)._
 
-To prevent unauthorized access if you step away from your device, the vault includes an inactivity watchdog.
-**15 Minutes:** If no mouse/keyboard/touch activity is detected, a timer starts.
-**60 Seconds:** A warning countdown appears.
-**Action:** The app automatically logs out and wipes memory if you do not respond.
+### **3. 🔑 Password Vault**
 
-### **🖱️ Paranoid Mode**
-
-Don't trust the computer's random number generator?
-**Paranoid Mode** allows you to inject your own entropy by moving your mouse (Desktop) or swiping your screen (Mobile). This physical chaos is mixed into the encryption seed, ensuring your keys are truly unpredictable.
-
----
-
-## 🚀 How to Use
-
-1.**Create a Vault:** Set a strong Master Password. 2.**Save your Recovery Code:** This `QRE-XXXX` code is the _only_ way to restore access if you forget your password. 3.**Lock:** Drag files or folders into the app. They are compressed and encrypted into `.qre` files. 4.**Unlock:** Drag a `.qre` file back into the app to restore the original.
+A secure, offline place to store your passwords, recovery codes, and sensitive notes.
+**Zero-Knowledge:** Your secrets are encrypted with your Master Key.
+**Portable:** The vault lives in your local `keychain.json` file, which you can backup to a USB drive.
 
 ---
 
-## 🛠️ Technical Stack
+## 🛡️ Security Architecture
 
-**Core:** Rust (Performance & Memory Safety)
-**Frontend:** React + TypeScript + Vite
-**Mobile Bridge:** Tauri v2 + Android NDK
-**Cryptography:**
-_Encryption:_ AES-256-GCM
-_KDF:_ Argon2id (19MB memory hardness)
-_RNG:_ ChaCha20 seeded via OS + User Entropy \* _Compression:_ Zstd (Zstandard)
+**Encryption:** AES-256-GCM (Authenticated Encryption).
+**Key Derivation:** Argon2id (Resistant to GPU brute-force).
+**Paranoid Mode:** Inject your own physical entropy (mouse movements/touch) to seed the random number generator.
+**Panic Button:** `Ctrl+Shift+Q` instantly kills the app and wipes memory (Desktop).
+
+---
+
+## 🚀 Getting Started
+
+1. **Create a Vault:** Set a strong Master Password.
+2. **Save your Recovery Code:** This is the _only_ way to restore access if you forget your password.
+3. **Start using the tools:** Select a tab on the left to Encrypt, Shred, or Store Passwords.
 
 ---
 
 ## 📦 Building from Source
 
-### Prerequisites
-
-**Rust:** `rustup` (latest stable)
-**Node.js:** v20+
-**Android (Optional):** Android Studio + NDK
-
-### Desktop Build
-
 ```bash
-# 1. Install dependencies
+# 1. Install Dependencies
 npm install
 
-# 2. Run in Development Mode
+# 2. Run in Dev Mode
 npm run tauri dev
 
-# 3. Build Release Bundle
+# 3. Build for Release
 npm run tauri build
 ```
 
-### Android Build
-
-```bash
-# 1. Setup Android Environment
-npm run tauri android init
-
-# 2. Build APK (Signed Debug)
-npm run tauri android build -- --debug --apk true --target aarch64
-```
-
----
-
 ## ⚠️ Important Security Notice
 
-QRE Locker follows a **Zero-Knowledge** architecture.
+QRE Toolkit follows a **Zero-Knowledge** architecture.
 If you lose your **Master Password** AND your **Recovery Code**, your data is mathematically inaccessible. There is no "Password Reset" button because there is no server.
 
 **Backup your `keychain.json` file and store your Recovery Code safely.**

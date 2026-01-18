@@ -70,7 +70,9 @@ body {
   height: 100vh;
   overflow: hidden;
   user-select: none;
-  transition: background-color 0.2s, color 0.2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
 }
 
 /* --- Scrollbar --- */
@@ -780,4 +782,202 @@ input::-ms-clear {
 
 .tool-btn:hover .icon-default {
   stroke: var(--accent); /* Turn blue on hover */
+}
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+}
+
+.sidebar {
+  width: 80px; /* Compact sidebar */
+  background-color: var(--panel-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 20px;
+  gap: 20px;
+}
+
+/* Mobile Responsive: Sidebar becomes Bottom Bar */
+@media (max-width: 600px) {
+  .app-container {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    height: 60px;
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 0;
+    order: 2; /* Move to bottom */
+    border-right: none;
+    border-top: 1px solid var(--border);
+  }
+}
+
+.content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+/* --- LAYOUT: Sidebar + Content --- */
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 200px;
+  background-color: var(--panel-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 15px;
+  gap: 10px;
+}
+
+.content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-color);
+}
+
+/* Sidebar Branding */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 5px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.app-title {
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: var(--text-main);
+  letter-spacing: 1px;
+}
+
+/* Navigation Buttons */
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+  text-align: left;
+}
+.nav-btn:hover {
+  background-color: var(--highlight);
+  color: var(--text-main);
+}
+.nav-btn.active {
+  background-color: var(--accent);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Mobile Responsive Sidebar */
+@media (max-width: 600px) {
+  .app-container {
+    flex-direction: column; /* Stack vertically */
+  }
+  .sidebar {
+    width: 100%;
+    height: 60px;
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 5px;
+    border-right: none;
+    border-top: 1px solid var(--border);
+    order: 2; /* Move to bottom */
+  }
+  .sidebar-header {
+    display: none; /* Hide logo on mobile to save space */
+  }
+  .nav-btn {
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.7rem;
+    padding: 6px;
+    flex: 1;
+    justify-content: center;
+  }
+  .content-area {
+    order: 1;
+  }
+}
+
+/* --- SHREDDER VIEW --- */
+.shredder-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+}
+.shred-zone {
+  border: 3px dashed var(--border);
+  border-radius: 20px;
+  padding: 50px;
+  width: 100%;
+  max-width: 500px;
+  transition: all 0.3s;
+  background-color: rgba(255, 255, 255, 0.02);
+}
+.shred-zone.active {
+  border-color: var(--btn-danger);
+  background-color: rgba(217, 64, 64, 0.1);
+}
+
+/* --- VAULT VIEW --- */
+.vault-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  overflow-y: auto;
+}
+.vault-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.vault-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+}
+.vault-card {
+  background-color: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 15px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.vault-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
 }

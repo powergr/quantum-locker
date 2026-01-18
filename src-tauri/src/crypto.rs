@@ -4,57 +4,36 @@ use aes_gcm::{
     Aes256Gcm, Nonce,
 };
 use anyhow::{anyhow, Context, Result};
-
+use rand::{rngs::OsRng, RngCore, SeedableRng};
+use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::io::{Cursor, Read, Seek, SeekFrom};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-/// A magic string encrypted inside the header.
-/// If we can successfully decrypt this string, we know the user's password is correct.
+const AES_NONCE_LEN: usize = 12;
 const VALIDATION_MAGIC: &[u8] = b"QRE_VALID";
 
 // --- Data Structures ---
 
-/// Represents the decrypted content of a file inside the application memory.
-///
-/// **Security Note:** This struct derives `Zeroize` and `ZeroizeOnDrop`.
-/// This means that as soon as this variable goes out of scope (is no longer needed),
-/// the memory containing the file data is physically overwritten with zeros.
-/// This protects against RAM scraping or Cold Boot attacks.
 #[derive(Serialize, Deserialize, Debug, Zeroize, ZeroizeOnDrop)]
 pub struct InnerPayload {
     #[zeroize(skip)]
-    pub filename: String, // The original filename (e.g., "photo.jpg")
-    pub content: Vec<u8>, // The decrypted file bytes
+    pub filename: String,
+    pub content: Vec<u8>,
 }
 
-/// The V4 Header structure.
-/// This format was used in QRE Locker v2.3 and below.
-/// It creates a "Wrapped Key" architecture where the File Key is encrypted by the Master Key.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EncryptedFileHeader {
-    // Random nonce used to encrypt the Validation Tag
     pub validation_nonce: Vec<u8>,
-    // Encrypted version of "QRE_VALID". Used to check password correctness quickly.
     pub encrypted_validation_tag: Vec<u8>,
-
-    // Random nonce used to encrypt the File Key
     pub key_wrapping_nonce: Vec<u8>,
-    // The actual AES-256 key used to encrypt the body, itself encrypted by the Master Key.
     pub encrypted_file_key: Vec<u8>,
-
-    // Nonce used for the main file body
     pub body_nonce: Vec<u8>,
-
-    // Metadata
     pub uses_keyfile: bool,
-    // SHA-256 hash of the original plaintext. Verified after decryption to detect tampering.
     pub original_hash: Option<Vec<u8>>,
 }
 
-/// The container format stored on disk for V4 files.
-/// It contains the version number, the header (metadata), and the encrypted body.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EncryptedFileContainer {
     pub version: u32,
@@ -63,19 +42,21 @@ pub struct EncryptedFileContainer {
 }
 
 impl EncryptedFileContainer {
-    /// Loads a `.qre` file from disk into memory and parses the header.
-    ///
-    /// **Compatibility Note:** This function specifically checks for Version 4.
-    /// V5 files (Streaming) are handled by `crypto_stream.rs`.
+    // Restored: Needed to save the Password Vault
+    pub fn save(&self, path: &str) -> Result<()> {
+        let file = std::fs::File::create(path).context("Failed to create output file")?;
+        let writer = std::io::BufWriter::new(file);
+        bincode::serialize_into(writer, self).context("Failed to write encrypted file")?;
+        Ok(())
+    }
+
     pub fn load(path: &str) -> Result<Self> {
         let mut file = std::fs::File::open(path).context("Failed to open encrypted file")?;
 
-        // Read the first 4 bytes to check the file version
         let mut ver_buf = [0u8; 4];
         file.read_exact(&mut ver_buf).context("Failed to read version")?;
         let version = u32::from_le_bytes(ver_buf);
 
-        // Rewind to the start so the deserializer can read the whole structure
         file.seek(SeekFrom::Start(0))?;
         let reader = std::io::BufReader::new(file);
 
@@ -90,10 +71,6 @@ impl EncryptedFileContainer {
 
 // --- Helper Functions ---
 
-/// Derives the "Wrapping Key" (Key Encryption Key).
-///
-/// It combines the **Master Key** (derived from the password) and the **Keyfile** (if used).
-/// This key is used *only* to unlock the File Key stored in the header.
 fn derive_wrapping_key(master_key: &MasterKey, keyfile_bytes: Option<&[u8]>) -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update(&master_key.0);
@@ -111,20 +88,93 @@ fn derive_wrapping_key(master_key: &MasterKey, keyfile_bytes: Option<&[u8]>) -> 
     key
 }
 
-/// Decompresses the decrypted data using the Zstd algorithm.
+// Restored: Needed for encryption
+fn compress_data(data: &[u8], level: i32) -> Result<Vec<u8>> {
+    zstd::stream::encode_all(Cursor::new(data), level).map_err(|e| anyhow!("Compression failed: {}", e))
+}
+
 fn decompress_data(data: &[u8]) -> Result<Vec<u8>> {
     zstd::stream::decode_all(Cursor::new(data)).map_err(|e| anyhow!("Decompression failed: {}", e))
 }
 
-// --- DECRYPTION ONLY (V4 Support) ---
+// --- ENCRYPTION (Restored for Password Vault & Folders) ---
 
-/// Decrypts a file using the Legacy V4 (Memory-Bound) Engine.
-///
-/// This workflow works as follows:
-/// 1.  **Validate:** Checks if the password/keyfile can decrypt the validation tag.
-/// 2.  **Unwrap:** Decrypts the specific File Key using the User's Master Key.
-/// 3.  **Decrypt:** Uses the File Key to decrypt the actual file content.
-/// 4.  **Integrity:** Hashes the result and compares it to the original hash to ensure no corruption.
+pub fn encrypt_file_with_master_key(
+    master_key: &MasterKey,
+    keyfile_bytes: Option<&[u8]>,
+    filename: &str,
+    file_bytes: &[u8],
+    entropy_seed: Option<[u8; 32]>,
+    compression_level: i32,
+) -> Result<EncryptedFileContainer> {
+    
+    // 1. Calculate Integrity Hash
+    let original_hash = Sha256::digest(file_bytes).to_vec();
+
+    // 2. Compress Data
+    let compressed_bytes = compress_data(file_bytes, compression_level)?;
+    let payload = InnerPayload {
+        filename: filename.to_string(),
+        content: compressed_bytes,
+    };
+    let plaintext_blob = bincode::serialize(&payload)?;
+
+    // 3. Setup RNG
+    let mut rng: Box<dyn RngCore> = match entropy_seed {
+        Some(seed) => Box::new(ChaCha20Rng::from_seed(seed)),
+        None => Box::new(OsRng),
+    };
+
+    // 4. Generate File Key
+    let mut file_key = [0u8; 32];
+    rng.fill_bytes(&mut file_key);
+    let cipher_file = Aes256Gcm::new_from_slice(&file_key).unwrap();
+
+    // 5. Encrypt Body
+    let mut body_nonce = [0u8; AES_NONCE_LEN];
+    rng.fill_bytes(&mut body_nonce);
+    let encrypted_body = cipher_file
+        .encrypt(Nonce::from_slice(&body_nonce), plaintext_blob.as_ref())
+        .map_err(|_| anyhow!("Body encryption failed"))?;
+
+    // 6. Wrap File Key
+    let mut wrapping_key = derive_wrapping_key(master_key, keyfile_bytes);
+    let cipher_wrap = Aes256Gcm::new_from_slice(&wrapping_key).unwrap();
+
+    let mut key_wrapping_nonce = [0u8; AES_NONCE_LEN];
+    rng.fill_bytes(&mut key_wrapping_nonce);
+    let encrypted_file_key = cipher_wrap
+        .encrypt(Nonce::from_slice(&key_wrapping_nonce), file_key.as_ref())
+        .map_err(|_| anyhow!("Failed to encrypt file key"))?;
+
+    // 7. Validation Tag
+    let mut validation_nonce = [0u8; AES_NONCE_LEN];
+    rng.fill_bytes(&mut validation_nonce);
+    let encrypted_validation = cipher_wrap
+        .encrypt(Nonce::from_slice(&validation_nonce), VALIDATION_MAGIC)
+        .map_err(|_| anyhow!("Validation creation failed"))?;
+
+    // Cleanup
+    file_key.zeroize();
+    wrapping_key.zeroize();
+
+    Ok(EncryptedFileContainer {
+        version: 4,
+        header: EncryptedFileHeader {
+            validation_nonce: validation_nonce.to_vec(),
+            encrypted_validation_tag: encrypted_validation,
+            key_wrapping_nonce: key_wrapping_nonce.to_vec(),
+            encrypted_file_key,
+            body_nonce: body_nonce.to_vec(),
+            uses_keyfile: keyfile_bytes.is_some(),
+            original_hash: Some(original_hash),
+        },
+        ciphertext: encrypted_body,
+    })
+}
+
+// --- DECRYPTION ---
+
 pub fn decrypt_file_with_master_key(
     master_key: &MasterKey,
     keyfile_bytes: Option<&[u8]>,
@@ -132,17 +182,13 @@ pub fn decrypt_file_with_master_key(
 ) -> Result<InnerPayload> {
     let h = &container.header;
 
-    // Security Check: If the file was locked with a Keyfile, ensure one is provided.
     if h.uses_keyfile && keyfile_bytes.is_none() {
         return Err(anyhow!("This file requires a Keyfile. Please select it."));
     }
 
-    // 1. Derive Wrapping Key
     let mut wrapping_key = derive_wrapping_key(master_key, keyfile_bytes);
     let cipher_wrap = Aes256Gcm::new_from_slice(&wrapping_key).unwrap();
 
-    // 2. Validate Password
-    // Attempts to decrypt the "Validation Tag". If this fails, the password is wrong.
     let val_nonce = Nonce::from_slice(&h.validation_nonce);
     match cipher_wrap.decrypt(val_nonce, h.encrypted_validation_tag.as_ref()) {
         Ok(bytes) => {
@@ -157,28 +203,20 @@ pub fn decrypt_file_with_master_key(
         }
     }
 
-    // 3. Decrypt the File Key
-    // This key is unique to the file.
     let file_key_vec = cipher_wrap
         .decrypt(Nonce::from_slice(&h.key_wrapping_nonce), h.encrypted_file_key.as_ref())
         .map_err(|_| anyhow!("Failed to unwrap file key"))?;
     
-    // Wipe the wrapping key from memory now that we have the file key.
     wrapping_key.zeroize();
 
-    // 4. Decrypt the Body
     let cipher_file = Aes256Gcm::new_from_slice(&file_key_vec).map_err(|_| anyhow!("Invalid file key length"))?;
     let decrypted_blob = cipher_file
         .decrypt(Nonce::from_slice(&h.body_nonce), container.ciphertext.as_ref())
         .map_err(|_| anyhow!("Body decryption failed."))?;
 
-    // 5. Decode & Decompress
     let mut payload: InnerPayload = bincode::deserialize(&decrypted_blob)?;
     payload.content = decompress_data(&payload.content)?;
 
-    // 6. Integrity Check
-    // Calculates the hash of the decrypted data and compares it to the hash stored in the header.
-    // This detects bit-rot, corruption, or malicious tampering.
     if let Some(expected_hash) = &h.original_hash {
         let actual_hash = Sha256::digest(&payload.content).to_vec();
         if &actual_hash != expected_hash {

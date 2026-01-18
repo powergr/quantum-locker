@@ -512,7 +512,7 @@ export function AboutModal({ onClose }: { onClose: () => void }) {
       <div className="auth-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <Info size={20} color="var(--accent)" />
-          <h2>About QRE Locker</h2>
+          <h2>About QRE Privacy Toolkit</h2>
           <div style={{ flex: 1 }}></div>
           <X size={20} style={{ cursor: "pointer" }} onClick={onClose} />
         </div>
@@ -520,8 +520,16 @@ export function AboutModal({ onClose }: { onClose: () => void }) {
           <p>
             <strong>Version {appVersion}</strong>
           </p>
-          <p style={{ color: "var(--text-dim)", fontSize: "0.9rem" }}>
-            Securing your files with military-grade AES-256-GCM encryption.
+          <p
+            style={{
+              color: "var(--text-dim)",
+              fontSize: "0.9rem",
+              lineHeight: "1.5",
+            }}
+          >
+            The local-first privacy suite.
+            <br />
+            Secure Encryption • Password Vault • File Shredder
           </p>
 
           {/* UPDATED: WEBSITE LINK */}
