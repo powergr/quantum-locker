@@ -2,9 +2,9 @@
 
 **The Local-First Swiss Army Knife for Digital Privacy.**
 
-[![Release](https://github.com/powergr/quantum-locker/actions/workflows/build.yml/badge.svg)](https://github.com/powergr/quantum-locker/actions/workflows/build.yml)
-![Version](https://img.shields.io/github/v/release/powergr/quantum-locker)
-![License](https://img.shields.io/github/license/powergr/quantum-locker)
+[![Release](https://github.com/powergr/qre-privacy-toolkit/actions/workflows/build.yml/badge.svg)](https://github.com/powergr/qre-privacy-toolkit/actions/workflows/build.yml)
+![Version](https://img.shields.io/github/v/release/powergr/qre-privacy-toolkit)
+![License](https://img.shields.io/github/license/powergr/qre-privacy-toolkit)
 
 QRE Toolkit is a secure, cross-platform application designed to handle your sensitive data without relying on the cloud. It runs natively on **Windows, macOS, Linux, and Android**.
 
