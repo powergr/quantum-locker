@@ -99,7 +99,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          # FIX 2: Look in the standard release folder, not 'universal'
-          files: src-tauri/gen/android/app/build/outputs/apk/release/*.apk
+          files: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
