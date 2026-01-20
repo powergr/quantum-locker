@@ -118,3 +118,58 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
     order: 1;
   }
 }
+/* --- HOME VIEW --- */
+.home-grid {
+  display: grid;
+  /* Auto-fit: Fits as many 240px cards as possible, then wraps */
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 25px;
+  width: 100%;
+  max-width: 900px; /* Don't get too wide on huge screens */
+  padding-bottom: 40px;
+}
+
+.home-card {
+  background-color: var(--panel-bg);
+  border: 1px solid var(--border);
+  padding: 30px 20px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  text-align: center;
+  height: 100%; /* Equal height */
+}
+
+.home-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--accent);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+}
+
+.card-icon {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 5px;
+}
+
+.home-card h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.home-card p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}

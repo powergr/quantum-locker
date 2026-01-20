@@ -80,36 +80,78 @@
 /* --- ADDRESS BAR --- */
 .address-bar {
   display: flex;
-  gap: 8px;
-  padding: 8px 15px;
+  gap: 10px;
+  padding: 10px 15px;
   background-color: var(--bg-color);
   border-bottom: 1px solid var(--border);
   align-items: center;
+  height: 60px; /* Enforce fixed height for the bar */
+}
+.address-bar .nav-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-main);
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* FORCE SIZE */
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0; /* Remove padding that might expand it */
+  flex-shrink: 0; /* Prevent squishing or growing */
+}
+
+.address-bar .nav-btn:hover {
+  background-color: var(--highlight);
+  border-color: var(--border);
 }
 .nav-btn {
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-main);
-  padding: 6px;
-  border-radius: 4px;
+  padding: 8px;
+  border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 36px; /* Prevent squishing */
+  height: 36px;
 }
 .nav-btn:hover {
   background-color: var(--highlight);
   border-color: var(--border);
 }
-.path-input {
-  flex: 1;
+.path-container {
+  flex: 1; /* Take up remaining space */
+  display: flex;
   background: var(--highlight);
   border: 1px solid var(--border);
+  border-radius: 6px;
+  height: 36px; /* Match button height */
+  overflow: hidden;
+  align-items: center;
+}
+
+.path-input {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
   color: var(--text-main);
-  padding: 6px 10px;
-  border-radius: 4px;
-  font-family: monospace;
+  padding: 0 12px; /* Horizontal padding only */
+  font-family: "Consolas", monospace;
   font-size: 0.9rem;
+  outline: none;
+}
+
+.path-input:focus {
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 /* --- FILE GRID --- */

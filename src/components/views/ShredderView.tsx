@@ -1,23 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Trash2, AlertTriangle, File } from "lucide-react";
 import { useDragDrop } from "../../hooks/useDragDrop";
 import { invoke } from "@tauri-apps/api/core";
+import { platform } from "@tauri-apps/plugin-os"; // Import OS detection
 import { BatchResult } from "../../types";
+import { DeleteConfirmModal } from "../modals/AppModals"; // Use custom modal
 
 export function ShredderView() {
   const [droppedFiles, setDroppedFiles] = useState<string[]>([]);
   const [shredding, setShredding] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [isAndroid, setIsAndroid] = useState(false);
+
+  // New: State to control the confirmation modal
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const { isDragging } = useDragDrop((files) => setDroppedFiles(files));
 
-  async function handleShred() {
-    if (droppedFiles.length === 0) return;
-    if (!confirm("Are you sure? This cannot be undone.")) return;
+  useEffect(() => {
+    // Check platform once on mount
+    const os = platform();
+    setIsAndroid(os === "android");
+  }, []);
 
+  // 1. User clicks button -> Show Modal
+  function requestShred() {
+    if (droppedFiles.length === 0) return;
+    setShowConfirm(true);
+  }
+
+  // 2. User confirms in Modal -> Execute
+  async function executeShred() {
+    setShowConfirm(false);
     setShredding(true);
     try {
-      // Use 'delete_items' which does secure shredding on Desktop
       await invoke<BatchResult[]>("delete_items", { paths: droppedFiles });
       setResult("Files destroyed.");
       setDroppedFiles([]);
@@ -63,7 +79,7 @@ export function ShredderView() {
         {droppedFiles.length > 0 && (
           <button
             className="auth-btn danger-btn"
-            onClick={handleShred}
+            onClick={requestShred} // Open Modal
             disabled={shredding}
             style={{ marginTop: 20, width: "100%" }}
           >
@@ -76,20 +92,34 @@ export function ShredderView() {
         )}
       </div>
 
-      <div
-        style={{
-          marginTop: 30,
-          display: "flex",
-          gap: 10,
-          color: "var(--warning)",
-          alignItems: "center",
-        }}
-      >
-        <AlertTriangle size={18} />
-        <span style={{ fontSize: "0.8rem" }}>
-          On Android, this performs standard deletion due to hardware limits.
-        </span>
-      </div>
+      {/* Only show on Android */}
+      {isAndroid && (
+        <div
+          style={{
+            marginTop: 30,
+            display: "flex",
+            gap: 10,
+            color: "var(--warning)",
+            alignItems: "center",
+          }}
+        >
+          <AlertTriangle size={18} />
+          <span style={{ fontSize: "0.8rem" }}>
+            On Android, this performs standard deletion due to hardware limits.
+          </span>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirm && (
+        <DeleteConfirmModal
+          items={droppedFiles}
+          onShred={executeShred}
+          // Hide "Trash" option in this view, only allow Shred or Cancel
+          onTrash={() => {}} // No-op or hide button via CSS/Prop if you want
+          onCancel={() => setShowConfirm(false)}
+        />
+      )}
     </div>
   );
 }

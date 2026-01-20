@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import "./App.css";
+// Load split styles
 import "./styles/components.css";
 import "./styles/dashboard.css";
 import "./components/layout/Sidebar.css";
@@ -15,12 +16,14 @@ import { useAuth } from "./hooks/useAuth";
 
 // Components (Layout & Views)
 import { Sidebar } from "./components/layout/Sidebar";
+import { HomeView } from "./components/views/HomeView";
 import { FilesView } from "./components/views/FilesView";
 import { ShredderView } from "./components/views/ShredderView";
 import { VaultView } from "./components/views/VaultView";
 
 // Auth & Modals
 import { AuthOverlay } from "./components/auth/AuthOverlay";
+import { HelpModal } from "./components/modals/HelpModal";
 import {
   AboutModal,
   ResetConfirmModal,
@@ -30,14 +33,14 @@ import {
   InfoModal,
   TimeoutWarningModal,
 } from "./components/modals/AppModals";
-import { HelpModal } from "./components/modals/HelpModal";
 
 function App() {
   const { theme, setTheme } = useTheme();
   const auth = useAuth();
 
   // --- GLOBAL STATE ---
-  const [activeTab, setActiveTab] = useState("files");
+  // Default to "home" so the user sees the dashboard landing page first
+  const [activeTab, setActiveTab] = useState("home");
 
   // Modals that can be triggered from anywhere
   const [showAbout, setShowAbout] = useState(false);
@@ -49,6 +52,8 @@ function App() {
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
 
   // --- GLOBAL HELPERS ---
+
+  // Handles the Backup Keychain logic (available from Toolbar in FilesView)
   async function performBackup() {
     setShowBackupModal(false);
     try {
@@ -58,7 +63,9 @@ function App() {
       });
 
       if (path) {
+        // 1. Get bytes from Rust (Works on Android/Desktop)
         const bytes = await invoke<number[]>("get_keychain_data");
+        // 2. Write using JS Plugin (Works with Android Content URIs)
         await writeFile(path, Uint8Array.from(bytes));
         setInfoMsg("Backup saved successfully.\nKeep it safe!");
       }
@@ -67,7 +74,8 @@ function App() {
     }
   }
 
-  // --- AUTH SCREEN ---
+  // --- AUTH SCREEN RENDERING ---
+  // If not authenticated, show the Setup/Login screens
   if (
     [
       "loading",
@@ -120,23 +128,26 @@ function App() {
   // --- MAIN APP LAYOUT ---
   return (
     <div className="app-container">
-      <Sidebar activeTab={activeTab} setTab={setActiveTab} />
+      {/* 1. PASS GLOBAL HANDLERS TO SIDEBAR */}
+      <Sidebar
+        activeTab={activeTab}
+        setTab={setActiveTab}
+        onOpenHelpModal={() => setShowHelpModal(true)}
+        onOpenAboutModal={() => setShowAbout(true)}
+        onLogout={auth.logout}
+        // NEW HANDLERS MOVED HERE
+        onTheme={() => setShowThemeModal(true)}
+        onBackup={() => setShowBackupModal(true)}
+        onChangePassword={() => setShowChangePass(true)}
+        onReset2FA={() => setShowResetConfirm(true)}
+      />
 
       <div className="content-area">
-        {activeTab === "files" && (
-          <FilesView
-            onLogout={auth.logout}
-            onTheme={() => setShowThemeModal(true)}
-            onAbout={() => setShowAbout(true)}
-            onHelp={() => setShowHelpModal(true)}
-            onBackup={() => setShowBackupModal(true)}
-            onChangePassword={() => setShowChangePass(true)}
-            onReset2FA={() => setShowResetConfirm(true)}
-          />
-        )}
+        {activeTab === "home" && <HomeView setTab={setActiveTab} />}
+
+        {activeTab === "files" && <FilesView />}
 
         {activeTab === "shred" && <ShredderView />}
-
         {activeTab === "vault" && <VaultView />}
       </div>
 

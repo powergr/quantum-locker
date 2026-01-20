@@ -25,20 +25,7 @@ import {
 // Types
 import { BatchResult } from "../../types";
 
-interface FilesViewProps {
-  onLogout: () => void;
-  onTheme: () => void;
-  onAbout: () => void;
-  onHelp: () => void;
-  onBackup: () => void;
-  onChangePassword: () => void;
-  onReset2FA: () => void;
-}
-
-export function FilesView(props: FilesViewProps) {
-  // --- HOOKS ---
-  // We initialize FileSystem here so it resets when switching tabs?
-  // No, better to keep it here so it feels like a self-contained view.
+export function FilesView() {
   const fs = useFileSystem("dashboard");
   const crypto = useCrypto(() => fs.loadDir(fs.currentPath));
 
@@ -185,7 +172,6 @@ export function FilesView(props: FilesViewProps) {
         onLock={() => requestLock(fs.selectedPaths)}
         onUnlock={() => crypto.runCrypto("unlock_file", fs.selectedPaths)}
         onRefresh={() => fs.loadDir(fs.currentPath)}
-        onLogout={props.onLogout}
         keyFile={crypto.keyFile}
         setKeyFile={crypto.setKeyFile}
         selectKeyFile={crypto.selectKeyFile}
@@ -193,13 +179,6 @@ export function FilesView(props: FilesViewProps) {
         setIsParanoid={crypto.setIsParanoid}
         compressionMode={crypto.compressionMode}
         onOpenCompression={() => setShowCompression(true)}
-        // Pass Global Modal Triggers up to App.tsx
-        onChangePassword={props.onChangePassword}
-        onReset2FA={props.onReset2FA}
-        onTheme={props.onTheme}
-        onAbout={props.onAbout}
-        onHelp={props.onHelp}
-        onBackup={props.onBackup}
       />
 
       <AddressBar

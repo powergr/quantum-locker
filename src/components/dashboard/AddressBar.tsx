@@ -1,61 +1,46 @@
 import { useState, useEffect } from "react";
-import { ArrowUp, ArrowRight } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 
 interface AddressBarProps {
   currentPath: string;
+  onNavigate: (path: string) => void;
   onGoUp: () => void;
-  onNavigate: (path: string) => void; // Added prop
 }
 
 export function AddressBar({
   currentPath,
-  onGoUp,
   onNavigate,
+  onGoUp,
 }: AddressBarProps) {
   // Local state to allow typing
-  const [pathInput, setPathInput] = useState(currentPath);
+  const [inputVal, setInputVal] = useState(currentPath);
 
-  // Sync when the actual system path changes (e.g. clicking a folder)
+  // Sync local state when the actual path changes (e.g. navigation via click)
   useEffect(() => {
-    setPathInput(currentPath);
+    setInputVal(currentPath);
   }, [currentPath]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
-      onNavigate(pathInput);
+      onNavigate(inputVal);
     }
   };
 
   return (
     <div className="address-bar">
-      <button className="nav-btn" onClick={onGoUp} title="Up one level">
-        <ArrowUp size={18} />
+      <button className="nav-btn" onClick={onGoUp} title="Go Up Directory">
+        <ArrowUp size={20} strokeWidth={2} />
       </button>
-      <div
-        className="path-container"
-        style={{ flex: 1, display: "flex", position: "relative" }}
-      >
+
+      <div className="path-container">
         <input
           className="path-input"
-          value={pathInput}
-          onChange={(e) => setPathInput(e.target.value)}
+          value={inputVal}
+          onChange={(e) => setInputVal(e.target.value)}
           onKeyDown={handleKeyDown}
+          placeholder="Path..."
           spellCheck={false}
         />
-        {/* Optional: Small go button inside right side if user prefers clicking */}
-        <button
-          className="nav-btn"
-          style={{
-            position: "absolute",
-            right: 2,
-            top: 2,
-            bottom: 2,
-            border: "none",
-          }}
-          onClick={() => onNavigate(pathInput)}
-        >
-          <ArrowRight size={16} />
-        </button>
       </div>
     </div>
   );

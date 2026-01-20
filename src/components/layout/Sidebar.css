@@ -1,56 +1,107 @@
 .sidebar {
-  width: 200px;
+  width: 220px;
   background-color: var(--panel-bg);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 15px;
-  gap: 10px;
+  padding: 20px;
+  gap: 15px;
+  height: 100%; /* Ensure it fills the vertical space */
 }
+
 .sidebar-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 5px;
-  margin-bottom: 20px;
+  gap: 12px;
+  padding: 0 5px 20px 5px;
+  margin-bottom: 10px;
   border-bottom: 1px solid var(--border);
 }
+
 .app-title {
-  font-weight: bold;
-  font-size: 1.2rem;
+  font-weight: 800;
+  font-size: 1.1rem;
   color: var(--text-main);
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 
+.nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+/* NAVIGATION BUTTONS */
 .nav-btn {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border: none;
+  gap: 15px;
+  padding: 12px 15px;
+  justify-content: flex-start;
+  text-align: left;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--text-dim);
   border-radius: 8px;
   cursor: pointer;
   font-size: 0.95rem;
+  font-weight: 600;
   transition: all 0.2s;
-  text-align: left;
+  width: 100%;
 }
+
 .nav-btn:hover {
   background-color: var(--highlight);
   color: var(--text-main);
 }
+
+/* Active Tab (BLUE) */
 .nav-btn.active {
   background-color: var(--accent);
   color: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
-/* Mobile */
+/* Help Button Open State (GRAY HIGHLIGHT) - Solves the color conflict */
+.nav-btn.menu-open {
+  background-color: var(--highlight);
+  color: var(--text-main);
+  border-color: var(--border);
+}
+
+/* HELP POPUP MENU */
+.help-menu {
+  position: absolute;
+  bottom: 100%; /* Pushes it directly above the button */
+  left: 0;
+  width: 100%;
+  margin-bottom: 10px; /* Small gap between button and menu */
+  background-color: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.4); /* Shadow goes UP */
+  z-index: 1000;
+  animation: slideUp 0.15s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile Responsive */
 @media (max-width: 600px) {
   .sidebar {
     width: 100%;
-    height: 60px;
+    height: 65px;
     flex-direction: row;
     justify-content: space-around;
     padding: 5px;
@@ -61,12 +112,22 @@
   .sidebar-header {
     display: none;
   }
+  .nav-links {
+    flex-direction: row;
+    gap: 5px;
+  }
   .nav-btn {
     flex-direction: column;
     gap: 4px;
     font-size: 0.7rem;
-    padding: 6px;
-    flex: 1;
+    padding: 5px;
     justify-content: center;
+    align-items: center;
+  }
+  /* On mobile, drop-up needs to behave differently or hide help */
+  .help-menu {
+    bottom: 65px;
+    left: 10px;
+    width: 200px;
   }
 }
