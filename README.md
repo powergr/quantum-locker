@@ -8,76 +8,65 @@
 
 QRE Toolkit is a secure, cross-platform application designed to handle your sensitive data without relying on the cloud. It runs natively on **Windows, macOS, Linux, and Android**.
 
-**[📥 Download the Latest Release](https://github.com/powergr/quantum-locker/releases)**
-
----
-
-## 🔒 Key Features
-
-### **1. Military-Grade Security**
-
-Your data is protected using **AES-256-GCM** (Galois/Counter Mode). This provides both confidentiality (they can't read it) and integrity (they can't modify it). Passwords are hardened using **Argon2id**, the winner of the Password Hashing Competition, making GPU brute-force attacks prohibitively expensive.
-
-### **2. Unlimited File Size**
-
-Powered by a custom **Rust Streaming Engine**, QRE Locker processes files chunk-by-chunk. You can encrypt 10GB, 50GB, or even 1TB files without using up your RAM, even on mobile devices.
-
-### **3. Smart Compression**
-
-The app uses **Zstd** compression to save space.
-**Auto-Detect:** Automatically applies fast compression to media files (images/video) and high compression to documents/text.
-**Extreme Mode:** Forces maximum compression levels for archival storage.
-
-### **4. Cross-Platform & Mobile Ready**
-
-The exact same encryption engine runs on your Desktop and your **Android Phone**.
-**Desktop:** Drag & Drop files or folders.
-**Android:** Fully native app. Encrypt photos directly from your Gallery or transfer secured files from your PC to your phone.
-
-### **5. Zero Knowledge**
-
-**No Cloud:** Files never leave your device.
-**No Accounts:** No email signup, no tracking.
-**No Backdoors:** We cannot recover your password. Only you hold the keys.
+**[📥 Download the Latest Release](https://github.com/powergr/qre-privacy-toolkit/releases)**
 
 ---
 
 ## 🛠️ The Toolkit
 
-### **1. 🔐 File Encryption (Unlimited Size)**
+QRE Toolkit combines 6 essential privacy tools into one secure application:
 
+### **1. 🔐 File Encryption**
 Secure any file—photos, tax documents, 50GB video backups—using military-grade **AES-256-GCM**.
-**Streaming Engine:** Encrypts huge files without eating up RAM.
-**Cross-Platform:** Lock a file on your PC, unlock it on your Android phone.
-**Smart Compression:** Automatically compresses documents while skipping media files.
+*   **Unlimited Size:** Powered by a custom **Rust Streaming Engine**, you can encrypt files of any size without using up your RAM.
+*   **Smart Compression:** Automatically compresses documents while skipping media files.
+*   **Cross-Platform:** Lock a file on your PC, unlock it on your Android phone.
 
-### **2. 🗑️ Secure Shredder (Desktop)**
+### **2. 🔑 Password Vault**
+A secure, offline database for your logins.
+*   **Zero-Knowledge:** Your secrets are encrypted with your Master Key inside your local keychain.
+*   **Generators:** Built-in strong password generator and strength meter.
 
-When you delete a file, the data remains on your disk. The Shredder overwrites your files with random noise before deleting them, making recovery impossible.
-_(Note: On Android, this performs a standard delete due to hardware limitations)._
+### **3. 📝 Secure Notes**
+An encrypted notepad for sensitive text that isn't just a password.
+*   Store recovery seeds, Wi-Fi codes, or private journals.
+*   Data is encrypted at rest and only decrypted in memory when you view it.
 
-### **3. 🔑 Password Vault**
+### **4. 📋 Secure Clipboard**
+The clipboard is a common security leak.
+*   **Secure Paste:** Grabs text from your clipboard, encrypts it into a secure history, and **wipes** the OS clipboard immediately.
+*   **Auto-Cleanup:** Automatically deletes history entries after a set time (e.g., 24 hours).
 
-A secure, offline place to store your passwords, recovery codes, and sensitive notes.
-**Zero-Knowledge:** Your secrets are encrypted with your Master Key.
-**Portable:** The vault lives in your local `keychain.json` file, which you can backup to a USB drive.
+### **5. 🧹 Metadata Cleaner**
+Photos and documents contain hidden data (Exif) that can reveal your location and identity.
+*   **Scrub:** Remove GPS coordinates, Camera models, Authors, and Edit history from Images (JPG/PNG), PDFs, and Office Docs.
+*   **Batch:** Drag & drop multiple files or folders to clean them instantly.
+
+### **6. 📡 Breach Check**
+Check if your password has appeared in known data leaks (850M+ records).
+*   **Privacy Preserving:** Uses **k-Anonymity**. We send only the first 5 characters of the hash to the API. Your password is **never** sent to any server.
+
+### **7. 🗑️ Secure Shredder (Desktop)**
+When you delete a file, the data remains on your disk. The Shredder overwrites your files with random noise (DoD Standard 3-Pass) before deleting them.
+*(Note: On Android, this performs a standard permanent delete due to hardware limitations).*
 
 ---
 
 ## 🛡️ Security Architecture
 
-**Encryption:** AES-256-GCM (Authenticated Encryption).
-**Key Derivation:** Argon2id (Resistant to GPU brute-force).
-**Paranoid Mode:** Inject your own physical entropy (mouse movements/touch) to seed the random number generator.
-**Panic Button:** `Ctrl+Shift+Q` instantly kills the app and wipes memory (Desktop).
+*   **Encryption:** AES-256-GCM (Authenticated Encryption).
+*   **Key Derivation:** Argon2id (Resistant to GPU brute-force).
+*   **Paranoid Mode:** Inject your own physical entropy (mouse movements/touch) to seed the random number generator.
+*   **Panic Button:** `Ctrl+Shift+Q` instantly kills the app and wipes memory (Desktop).
+*   **Auto-Lock:** Sessions timeout after 15 minutes of inactivity.
 
 ---
 
 ## 🚀 Getting Started
 
-1. **Create a Vault:** Set a strong Master Password.
-2. **Save your Recovery Code:** This is the _only_ way to restore access if you forget your password.
-3. **Start using the tools:** Select a tab on the left to Encrypt, Shred, or Store Passwords.
+1.  **Create a Vault:** Set a strong Master Password.
+2.  **Save your Recovery Code:** This is the *only* way to restore access if you forget your password.
+3.  **Start using the tools:** Select a tool from the Home screen or Sidebar.
 
 ---
 

@@ -42,6 +42,11 @@ argon2 = "0.5"
 tauri-plugin-os = "2"
 tauri-plugin-opener = "2"
 
+# Clipboard monitoring (Desktop)
+arboard = "3.3" 
+regex = "1"
+chrono = "0.4"
+
 # Metadata Cleaning Dependencies
 exif = { package = "kamadak-exif", version = "0.5" }
 img-parts = "0.3"

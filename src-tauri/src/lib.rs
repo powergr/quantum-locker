@@ -1,18 +1,18 @@
-// --- MODULE DECLARATIONS ---
 mod commands;
 mod crypto;
 mod crypto_stream;
 mod entropy;
 mod keychain;
-mod notes; 
+mod notes;
+mod clipboard_store;
 mod secure_rng;
 mod state;
 mod tests;
 mod utils;
 mod vault;
 mod wordlist;
-mod breach;
-mod cleaner;
+mod breach; // <--- ADDED MODULE REGISTRATION
+mod cleaner; // <--- ADDED MODULE REGISTRATION
 
 use state::SessionState;
 use std::sync::{Arc, Mutex};
@@ -92,9 +92,13 @@ pub fn run() {
             commands::save_notes_vault,
             // Utilities
             commands::generate_passphrase,
-            commands::check_password_breach,
             commands::analyze_file_metadata,
             commands::clean_file_metadata,
+            commands::check_password_breach,
+            // Clipboard
+            commands::add_clipboard_entry,
+            commands::load_clipboard_vault,
+            commands::save_clipboard_vault
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

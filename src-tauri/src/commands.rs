@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 use sha2::{Sha256, Digest};
 use std::io::Read;
 
-// Fix: Only import Command on Desktop
 #[cfg(not(target_os = "android"))]
 use std::process::Command;
 
@@ -18,10 +17,10 @@ use crate::crypto;
 use crate::crypto_stream;
 use crate::vault::PasswordVault;
 use crate::notes::NotesVault;
-use crate::breach;
+use crate::clipboard_store::{ClipboardVault};
+use crate::cleaner::{self, MetadataReport};
 use crate::wordlist::WORDLIST;
 use rand::RngCore;
-use crate::cleaner::{self, MetadataReport};
 
 type CommandResult<T> = Result<T, String>;
 
@@ -56,43 +55,32 @@ fn is_already_compressed(filename: &str) -> bool {
         "jpg" | "jpeg" | "png" | "gif" | "webp" | 
         "zip" | "7z" | "rar" | "gz" | "bz2" | "xz" | 
         "mp4" | "mkv" | "mov" | "avi" | "webm" | 
-        "mp3" | "aac" | "flac" | "pkg" | "wav" | "pdf"
+        "mp3" | "aac" | "flac" | "wav" | "pdf"
     )
 }
 
-#[tauri::command]
-pub async fn check_password_breach(password: String) -> CommandResult<breach::BreachResult> {
-    breach::check_pwned(&password).await.map_err(|e| e.to_string())
-}
-
-// --- NEW COMMAND: Get Keychain Data (For Android Backup) ---
-#[tauri::command]
-pub fn get_keychain_data(app: AppHandle) -> CommandResult<Vec<u8>> {
-    let path = resolve_keychain_path(&app)?;
-    if !path.exists() {
-        return Err("Keychain not found on disk.".to_string());
-    }
-    fs::read(path).map_err(|e| format!("Failed to read keychain: {}", e))
-}
-
-// --- METADATA CLEANER COMMANDS ---
-
+// --- METADATA CLEANER (RESTORED) ---
 #[tauri::command]
 pub async fn analyze_file_metadata(path: String) -> CommandResult<MetadataReport> {
-    cleaner::analyze_file(std::path::Path::new(&path)).map_err(|e| e.to_string())
+    cleaner::analyze_file(Path::new(&path)).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn clean_file_metadata(path: String) -> CommandResult<String> {
-    let out_path = cleaner::remove_metadata(std::path::Path::new(&path)).map_err(|e| e.to_string())?;
+    let out_path = cleaner::remove_metadata(Path::new(&path)).map_err(|e| e.to_string())?;
     Ok(out_path.to_string_lossy().to_string())
 }
 
-// --- NEW COMMAND: Generate Passphrase ---
+// --- PASSWORD BREACH CHECK (RESTORED) ---
+#[tauri::command]
+pub async fn check_password_breach(password: String) -> CommandResult<crate::breach::BreachResult> {
+    crate::breach::check_pwned(&password).await.map_err(|e| e.to_string())
+}
+
+// --- PASSWORD GENERATOR (RESTORED) ---
 #[tauri::command]
 pub fn generate_passphrase() -> String {
     let mut rng = rand::thread_rng();
-    // Generate 6 random words separated by hyphens
     (0..6)
         .map(|_| {
             let idx = (rng.next_u64() as usize) % WORDLIST.len();
@@ -100,6 +88,110 @@ pub fn generate_passphrase() -> String {
         })
         .collect::<Vec<_>>()
         .join("-")
+}
+
+// --- CLIPBOARD COMMANDS ---
+
+#[tauri::command]
+pub fn load_clipboard_vault(
+    app: AppHandle, 
+    state: tauri::State<SessionState>,
+    retention_hours: u64 
+) -> CommandResult<ClipboardVault> {
+    let master_key = {
+        let guard = state.master_key.lock().unwrap();
+        match &*guard {
+            Some(mk) => mk.clone(),
+            None => return Err("Vault is locked".to_string()),
+        }
+    };
+
+    let path = resolve_keychain_path(&app)?.parent().unwrap().join("clipboard.qre");
+    
+    if !path.exists() {
+        return Ok(ClipboardVault::new());
+    }
+
+    let container = crypto::EncryptedFileContainer::load(path.to_str().unwrap())
+        .map_err(|e| e.to_string())?;
+        
+    let payload = crypto::decrypt_file_with_master_key(&master_key, None, &container)
+        .map_err(|e| e.to_string())?;
+
+    let mut vault: ClipboardVault = serde_json::from_slice(&payload.content)
+        .map_err(|_| "Failed to parse clipboard data".to_string())?;
+
+    // Auto-Cleanup logic
+    let ttl_ms = retention_hours * 60 * 60 * 1000;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64;
+
+    let initial_count = vault.entries.len();
+    vault.entries.retain(|e| (now - e.created_at) < (ttl_ms as i64));
+
+    if vault.entries.len() != initial_count {
+        let json_data = serde_json::to_vec(&vault).map_err(|e| e.to_string())?;
+        let container = crypto::encrypt_file_with_master_key(
+            &master_key, None, "clipboard.json", &json_data, None, 3
+        ).map_err(|e| e.to_string())?;
+        container.save(path.to_str().unwrap()).map_err(|e| e.to_string())?;
+    }
+
+    Ok(vault)
+}
+
+#[tauri::command]
+pub fn save_clipboard_vault(
+    app: AppHandle, 
+    state: tauri::State<SessionState>, 
+    vault: ClipboardVault
+) -> CommandResult<()> {
+    let master_key = {
+        let guard = state.master_key.lock().unwrap();
+        match &*guard {
+            Some(mk) => mk.clone(),
+            None => return Err("Vault is locked".to_string()),
+        }
+    };
+
+    let path = resolve_keychain_path(&app)?.parent().unwrap().join("clipboard.qre");
+    let json_data = serde_json::to_vec(&vault).map_err(|e| e.to_string())?;
+    
+    let container = crypto::encrypt_file_with_master_key(
+        &master_key, None, "clipboard.json", &json_data, None, 3
+    ).map_err(|e| e.to_string())?;
+
+    container.save(path.to_str().unwrap()).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn add_clipboard_entry(
+    app: AppHandle, 
+    state: tauri::State<SessionState>, 
+    text: String,
+    retention_hours: u64
+) -> CommandResult<()> {
+    let entry = crate::clipboard_store::create_entry(&text);
+
+    let mut vault = load_clipboard_vault(app.clone(), state.clone(), retention_hours)?;
+    vault.entries.insert(0, entry);
+    save_clipboard_vault(app, state, vault)?;
+
+    Ok(())
+}
+
+// --- UTILS ---
+
+#[tauri::command]
+pub fn get_keychain_data(app: AppHandle) -> CommandResult<Vec<u8>> {
+    let path = resolve_keychain_path(&app)?;
+    if !path.exists() {
+        return Err("Keychain not found on disk.".to_string());
+    }
+    fs::read(path).map_err(|e| format!("Failed to read keychain: {}", e))
 }
 
 // --- AUTH & SYSTEM ---
@@ -140,7 +232,6 @@ pub fn init_vault(app: AppHandle, password: String, state: tauri::State<SessionS
     let path = resolve_keychain_path(&app)?;
     let (recovery_code, master_key) = keychain::init_keychain(&path, &password).map_err(|e| e.to_string())?;
     
-    // Auto-login
     let mut guard = state.master_key.lock().unwrap();
     *guard = Some(master_key);
 
@@ -300,38 +391,23 @@ pub fn rename_item(path: String, new_name: String) -> CommandResult<()> {
 
 #[tauri::command]
 pub fn show_in_folder(path: String) -> CommandResult<()> {
-    // ANDROID: Return Error
     #[cfg(target_os = "android")]
     {
         let _ = path; 
         Err("Reveal in Explorer is not supported on Android".to_string())
     }
-
-    // DESKTOP: Execute Command
     #[cfg(not(target_os = "android"))]
     {
         #[cfg(target_os = "windows")]
-        Command::new("explorer")
-            .args(["/select,", &path])
-            .spawn()
-            .map_err(|e| e.to_string())?;
-
+        Command::new("explorer").args(["/select,", &path]).spawn().map_err(|e| e.to_string())?;
         #[cfg(target_os = "linux")]
         {
             let p = Path::new(&path);
             let parent = p.parent().unwrap_or(p);
-            Command::new("xdg-open")
-                .arg(parent)
-                .spawn()
-                .map_err(|e| e.to_string())?;
+            Command::new("xdg-open").arg(parent).spawn().map_err(|e| e.to_string())?;
         }
-
         #[cfg(target_os = "macos")]
-        Command::new("open")
-            .args(["-R", &path])
-            .spawn()
-            .map_err(|e| e.to_string())?;
-
+        Command::new("open").args(["-R", &path]).spawn().map_err(|e| e.to_string())?;
         Ok(())
     }
 }
@@ -384,21 +460,14 @@ pub async fn lock_file(
             
             utils::emit_progress(&app, &format!("Preparing: {}", filename), 5);
 
-            // --- SMART COMPRESSION LOGIC ---
             let level = match mode_str.as_str() {
                 "store" => 0,
                 "extreme" => 19,
                 "auto" | _ => {
-                    if is_already_compressed(&filename) {
-                        1 // Minimal/Fast for media
-                    } else {
-                        3 // Balanced for documents
-                    }
+                    if is_already_compressed(&filename) { 1 } else { 3 }
                 }
             };
 
-            // --- INPUT DETERMINATION (File vs Folder) ---
-            
             let (input_path_str, is_temp) = if path.is_dir() {
                 let parent = path.parent().unwrap_or(Path::new("."));
                 let temp_zip_name = format!("{}.zip", filename);
@@ -416,7 +485,6 @@ pub async fn lock_file(
                 (file_path.clone(), false)
             };
 
-            // --- OUTPUT PATH SETUP ---
             let raw_output = format!("{}.qre", file_path);
             let final_path = utils::get_unique_path(Path::new(&raw_output));
             let final_path_str = final_path.to_string_lossy().to_string();
@@ -424,7 +492,6 @@ pub async fn lock_file(
             let app_handle = app.clone();
             let f_name_clone = filename.to_string();
             
-            // Progress Callback
             let progress_cb = move |processed: u64, total: u64| {
                 if total > 0 {
                     let pct = (processed as f64 / total as f64 * 100.0) as u8;
@@ -433,37 +500,25 @@ pub async fn lock_file(
                 }
             };
 
-            // --- V5 STREAMING ENCRYPTION ---
             let encryption_result = crypto_stream::encrypt_file_stream(
                 &input_path_str,
                 &final_path_str,
                 &master_key,
                 keyfile_hash.as_deref(),
                 entropy_seed,
-                level, // Pass the smart level
+                level,
                 progress_cb
             );
 
-            // Cleanup Temp Zip
-            if is_temp {
-                let _ = fs::remove_file(&input_path_str);
-            }
+            if is_temp { let _ = fs::remove_file(&input_path_str); }
 
             match encryption_result {
                 Ok(_) => {
-                    results.push(BatchItemResult { 
-                        name: filename.to_string(), 
-                        success: true, 
-                        message: "Locked".into() 
-                    });
+                    results.push(BatchItemResult { name: filename.to_string(), success: true, message: "Locked".into() });
                 },
                 Err(e) => {
-                    let _ = fs::remove_file(&final_path); // Cleanup partial file
-                    results.push(BatchItemResult { 
-                        name: filename.to_string(), 
-                        success: false, 
-                        message: e.to_string() 
-                    });
+                    let _ = fs::remove_file(&final_path);
+                    results.push(BatchItemResult { name: filename.to_string(), success: false, message: e.to_string() });
                 }
             }
         }
@@ -504,7 +559,6 @@ pub async fn unlock_file(
             let filename = path.file_name().unwrap_or_default().to_string_lossy().to_string();
             utils::emit_progress(&app, &format!("Checking: {}", filename), 5);
 
-            // DETECT VERSION (V4 vs V5)
             let mut file = match fs::File::open(path) {
                 Ok(f) => f,
                 Err(e) => {
@@ -521,7 +575,6 @@ pub async fn unlock_file(
             let version = u32::from_le_bytes(ver_buf);
 
             if version == 4 {
-                // V4 (Legacy Memory Engine)
                 match crypto::EncryptedFileContainer::load(&file_path) {
                     Ok(container) => {
                         utils::emit_progress(&app, &format!("Decrypting (Legacy V4): {}", filename), 50);
@@ -544,7 +597,6 @@ pub async fn unlock_file(
                     Err(e) => results.push(BatchItemResult { name: filename, success: false, message: e.to_string() }),
                 }
             } else if version == 5 {
-                // V5 (Streaming Engine)
                 let parent = Path::new(&file_path).parent().unwrap_or(Path::new("."));
                 let output_dir_str = parent.to_string_lossy().to_string();
 
@@ -576,7 +628,39 @@ pub async fn unlock_file(
     }).await.map_err(|e| e.to_string())?
 }
 
-// --- SECURE NOTES COMMANDS ---
+// --- VAULT COMMANDS ---
+#[tauri::command]
+pub fn load_password_vault(app: AppHandle, state: tauri::State<SessionState>) -> CommandResult<PasswordVault> {
+    let master_key = {
+        let guard = state.master_key.lock().unwrap();
+        match &*guard {
+            Some(mk) => mk.clone(),
+            None => return Err("Vault is locked".to_string()),
+        }
+    };
+    let path = resolve_keychain_path(&app)?.parent().unwrap().join("passwords.qre");
+    if !path.exists() { return Ok(PasswordVault::new()); }
+    let container = crypto::EncryptedFileContainer::load(path.to_str().unwrap()).map_err(|e| e.to_string())?;
+    let payload = crypto::decrypt_file_with_master_key(&master_key, None, &container).map_err(|e| e.to_string())?;
+    let vault: PasswordVault = serde_json::from_slice(&payload.content).map_err(|_| "Failed to parse vault".to_string())?;
+    Ok(vault)
+}
+
+#[tauri::command]
+pub fn save_password_vault(app: AppHandle, state: tauri::State<SessionState>, vault: PasswordVault) -> CommandResult<()> {
+    let master_key = {
+        let guard = state.master_key.lock().unwrap();
+        match &*guard {
+            Some(mk) => mk.clone(),
+            None => return Err("Vault is locked".to_string()),
+        }
+    };
+    let path = resolve_keychain_path(&app)?.parent().unwrap().join("passwords.qre");
+    let json_data = serde_json::to_vec(&vault).map_err(|e| e.to_string())?;
+    let container = crypto::encrypt_file_with_master_key(&master_key, None, "passwords.json", &json_data, None, 3).map_err(|e| e.to_string())?;
+    container.save(path.to_str().unwrap()).map_err(|e| e.to_string())?;
+    Ok(())
+}
 
 #[tauri::command]
 pub fn load_notes_vault(app: AppHandle, state: tauri::State<SessionState>) -> CommandResult<NotesVault> {
@@ -587,31 +671,16 @@ pub fn load_notes_vault(app: AppHandle, state: tauri::State<SessionState>) -> Co
             None => return Err("Vault is locked".to_string()),
         }
     };
-
     let path = resolve_keychain_path(&app)?.parent().unwrap().join("notes.qre");
-    
-    if !path.exists() {
-        return Ok(NotesVault::new());
-    }
-
-    let container = crypto::EncryptedFileContainer::load(path.to_str().unwrap())
-        .map_err(|e| e.to_string())?;
-        
-    let payload = crypto::decrypt_file_with_master_key(&master_key, None, &container)
-        .map_err(|e| e.to_string())?;
-
-    let vault: NotesVault = serde_json::from_slice(&payload.content)
-        .map_err(|_| "Failed to parse notes data".to_string())?;
-
+    if !path.exists() { return Ok(NotesVault::new()); }
+    let container = crypto::EncryptedFileContainer::load(path.to_str().unwrap()).map_err(|e| e.to_string())?;
+    let payload = crypto::decrypt_file_with_master_key(&master_key, None, &container).map_err(|e| e.to_string())?;
+    let vault: NotesVault = serde_json::from_slice(&payload.content).map_err(|_| "Failed to parse notes".to_string())?;
     Ok(vault)
 }
 
 #[tauri::command]
-pub fn save_notes_vault(
-    app: AppHandle, 
-    state: tauri::State<SessionState>, 
-    vault: NotesVault
-) -> CommandResult<()> {
+pub fn save_notes_vault(app: AppHandle, state: tauri::State<SessionState>, vault: NotesVault) -> CommandResult<()> {
     let master_key = {
         let guard = state.master_key.lock().unwrap();
         match &*guard {
@@ -619,73 +688,9 @@ pub fn save_notes_vault(
             None => return Err("Vault is locked".to_string()),
         }
     };
-
     let path = resolve_keychain_path(&app)?.parent().unwrap().join("notes.qre");
-    
     let json_data = serde_json::to_vec(&vault).map_err(|e| e.to_string())?;
-    
-    let container = crypto::encrypt_file_with_master_key(
-        &master_key, None, "notes.json", &json_data, None, 3
-    ).map_err(|e| e.to_string())?;
-
+    let container = crypto::encrypt_file_with_master_key(&master_key, None, "notes.json", &json_data, None, 3).map_err(|e| e.to_string())?;
     container.save(path.to_str().unwrap()).map_err(|e| e.to_string())?;
-    
-    Ok(())
-}
-
-// --- PASSWORD VAULT COMMANDS ---
-
-#[tauri::command]
-pub fn load_password_vault(app: AppHandle, state: tauri::State<SessionState>) -> CommandResult<PasswordVault> {
-    let master_key = {
-        let guard = state.master_key.lock().unwrap();
-        match &*guard {
-            Some(mk) => mk.clone(),
-            None => return Err("Vault is locked".to_string()),
-        }
-    };
-
-    let path = resolve_keychain_path(&app)?.parent().unwrap().join("passwords.qre");
-    
-    if !path.exists() {
-        return Ok(PasswordVault::new());
-    }
-
-    let container = crypto::EncryptedFileContainer::load(path.to_str().unwrap())
-        .map_err(|e| e.to_string())?;
-        
-    let payload = crypto::decrypt_file_with_master_key(&master_key, None, &container)
-        .map_err(|e| e.to_string())?;
-
-    let vault: PasswordVault = serde_json::from_slice(&payload.content)
-        .map_err(|_| "Failed to parse vault data".to_string())?;
-
-    Ok(vault)
-}
-
-#[tauri::command]
-pub fn save_password_vault(
-    app: AppHandle, 
-    state: tauri::State<SessionState>, 
-    vault: PasswordVault
-) -> CommandResult<()> {
-    let master_key = {
-        let guard = state.master_key.lock().unwrap();
-        match &*guard {
-            Some(mk) => mk.clone(),
-            None => return Err("Vault is locked".to_string()),
-        }
-    };
-
-    let path = resolve_keychain_path(&app)?.parent().unwrap().join("passwords.qre");
-    
-    let json_data = serde_json::to_vec(&vault).map_err(|e| e.to_string())?;
-    
-    let container = crypto::encrypt_file_with_master_key(
-        &master_key, None, "passwords.json", &json_data, None, 3
-    ).map_err(|e| e.to_string())?;
-
-    container.save(path.to_str().unwrap()).map_err(|e| e.to_string())?;
-    
     Ok(())
 }

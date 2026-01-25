@@ -1,0 +1,106 @@
+.clipboard-view {
+  flex: 1; display: flex; flex-direction: column; padding: 20px; overflow-y: auto;
+}
+
+.clipboard-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+}
+
+/* Category Badges */
+.badge {
+  font-size: 0.7rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+.badge.text { background: var(--highlight); color: var(--text-dim); }
+.badge.password { background: rgba(220, 38, 38, 0.2); color: #f87171; }
+.badge.card { background: rgba(37, 99, 235, 0.2); color: #60a5fa; }
+.badge.apikey { background: rgba(234, 179, 8, 0.2); color: #facc15; }
+.badge.crypto { background: rgba(147, 51, 234, 0.2); color: #c084fc; }
+
+.clipboard-card {
+  background-color: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  transition: all 0.2s;
+}
+.clipboard-card:hover { border-color: var(--accent); transform: translateX(2px); }
+
+.clip-icon {
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: var(--highlight);
+  color: var(--text-main);
+}
+
+.clip-content { flex: 1; overflow: hidden; }
+.clip-preview { font-family: monospace; font-size: 1rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clip-meta { display: flex; align-items: center; gap: 10px; margin-top: 4px; font-size: 0.75rem; color: var(--text-dim); }
+
+/* BUTTON ALIGNMENT FIX */
+.clipboard-actions {
+  display: flex;
+  align-items: stretch; /* Forces buttons to have same height */
+  gap: 10px;
+}
+
+/* Make 'Clear' button visually match the 'Secure Paste' button dimensions */
+.clear-btn {
+  margin: 0; /* Remove default margins */
+  height: auto; /* Allow stretch */
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-color: var(--border);
+  border-radius: 8px;
+}
+
+.clear-btn:hover {
+  border-color: var(--btn-danger);
+  color: var(--btn-danger);
+}
+
+/* Ensure Secure Paste button doesn't have weird margins either */
+.clipboard-header .header-action-btn {
+    margin: 0;
+    height: 42px; /* Force fixed height for both if stretch fails */
+}
+
+.clipboard-header .clear-btn {
+    height: 42px;
+}
+/* Retention Selector */
+.retention-selector {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  padding: 0 10px;
+  border-radius: 8px;
+  height: 42px; /* Match button height */
+  margin-right: 5px;
+}
+
+.retention-dropdown {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+.retention-dropdown option {
+  background: var(--panel-bg);
+  color: var(--text-main);
+}

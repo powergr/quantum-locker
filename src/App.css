@@ -121,39 +121,40 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
 /* --- HOME VIEW --- */
 .home-grid {
   display: grid;
-  /* Auto-fit: Fits as many 240px cards as possible, then wraps */
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 25px;
+  /* Reduced min-width to ensure 3 columns fit on smaller screens */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 15px; /* Tighter gap (was 25px) */
   width: 100%;
-  max-width: 900px; /* Don't get too wide on huge screens */
-  padding-bottom: 40px;
+  max-width: 850px;
+  padding-bottom: 20px;
 }
 
 .home-card {
   background-color: var(--panel-bg);
   border: 1px solid var(--border);
-  padding: 30px 20px;
-  border-radius: 16px;
+  padding: 20px; /* Reduced padding (was 30px) */
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 15px;
+  gap: 10px; /* Tighter internal gap */
   text-align: center;
-  height: 100%; /* Equal height */
+  height: 100%;
+  min-height: 160px; /* Ensure uniform height */
 }
 
 .home-card:hover {
-  transform: translateY(-6px);
+  transform: translateY(-4px);
   border-color: var(--accent);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
 .card-icon {
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
+  width: 50px;  /* Smaller icon circle (was 70px) */
+  height: 50px;
+  border-radius: 12px; /* Rounded square looks more modern than circle */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -162,14 +163,14 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
 
 .home-card h3 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.05rem; /* Slightly smaller font */
   color: var(--text-main);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .home-card p {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--text-dim);
-  line-height: 1.4;
+  line-height: 1.3;
 }

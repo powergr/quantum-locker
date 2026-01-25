@@ -6,7 +6,7 @@
   flex-direction: column;
   padding: 20px;
   gap: 15px;
-  height: 100%; /* Ensure it fills the vertical space */
+  height: 100%;
 }
 
 .sidebar-header {
@@ -70,22 +70,77 @@
   border-color: var(--border);
 }
 
-/* HELP POPUP MENU */
+/* --- POPUP MENUS (Flyout Style) --- */
 .help-menu {
   position: absolute;
-  bottom: 100%; /* Pushes it directly above the button */
-  left: 0;
-  width: 100%;
-  margin-bottom: 10px; /* Small gap between button and menu */
+  left: 100%; /* Push to the right of the sidebar */
+  bottom: 0;  /* Align bottom of menu with bottom of button */
+  margin-left: 15px; /* Gap between sidebar and menu */
+  
+  width: 220px;
   background-color: var(--panel-bg);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 6px;
-  box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.4); /* Shadow goes UP */
-  z-index: 1000;
-  animation: slideUp 0.15s ease-out;
+  padding: 8px;
+  
+  /* Modern Shadow */
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05); /* Inner highlight */
+    
+  z-index: 2000;
+  
+  /* Smooth Entrance Animation */
+  opacity: 0;
+  transform: translateX(-10px) scale(0.95);
+  animation: menuEnter 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
+/* Little Arrow pointing to the sidebar */
+.help-menu::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  bottom: 20px; /* Align with the triggering button center */
+  width: 12px;
+  height: 12px;
+  background-color: var(--panel-bg);
+  border-left: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+
+@keyframes menuEnter {
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* Hover effects for items */
+.dropdown-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dropdown-item:hover {
+  background-color: var(--highlight);
+  color: white;
+  transform: translateX(2px); /* Subtle movement */
+}
+
+/* Adjust Divider */
+.dropdown-divider {
+  height: 1px;
+  background-color: var(--border);
+  margin: 6px 0;
+  opacity: 0.5;
+}
 @keyframes slideUp {
   from {
     opacity: 0;

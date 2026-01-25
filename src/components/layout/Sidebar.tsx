@@ -1,21 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import {
-  Lock,
-  Trash2,
-  Key,
-  Fingerprint,
-  Home,
-  CircleHelp,
-  BookOpen,
-  Info,
-  LogOut,
-  Settings,
-  Monitor,
-  Download,
-  RotateCcw,
-  StickyNote,
-  Radar,
-  Eraser,
+import { 
+  Lock, Trash2, Key, Fingerprint, Home, 
+  CircleHelp, BookOpen, Info, LogOut, 
+  Settings, Monitor, Download, RotateCcw, 
+  StickyNote, Radar, Eraser, ClipboardList,
+  ChevronRight 
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
@@ -25,58 +14,35 @@ interface SidebarProps {
   onOpenHelpModal: () => void;
   onOpenAboutModal: () => void;
   onLogout: () => void;
+  
+  // Global Option Handlers
   onTheme: () => void;
   onBackup: () => void;
   onChangePassword: () => void;
   onReset2FA: () => void;
 }
 
-export function Sidebar({
-  activeTab,
-  setTab,
-  onOpenHelpModal,
-  onOpenAboutModal,
-  onLogout,
-  onTheme,
-  onBackup,
-  onChangePassword,
-  onReset2FA,
+export function Sidebar({ 
+  activeTab, setTab, 
+  onOpenHelpModal, onOpenAboutModal, onLogout,
+  onTheme, onBackup, onChangePassword, onReset2FA 
 }: SidebarProps) {
+  
   const [showHelpMenu, setShowHelpMenu] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
-
+  
   const helpRef = useRef<HTMLDivElement>(null);
   const optionsRef = useRef<HTMLDivElement>(null);
 
   const tabs = [
     { id: "home", label: "Home", icon: <Home size={22} strokeWidth={2.5} /> },
     { id: "files", label: "Files", icon: <Lock size={22} strokeWidth={2.5} /> },
-    {
-      id: "notes",
-      label: "Notes",
-      icon: <StickyNote size={22} strokeWidth={2.5} />,
-    },
-    {
-      id: "vault",
-      label: "Passwords",
-      icon: <Key size={22} strokeWidth={2.5} />,
-    },
-    // NEW TAB ADDED HERE
-    {
-      id: "breach",
-      label: "Breach Check",
-      icon: <Radar size={22} strokeWidth={2.5} />,
-    },
-    {
-      id: "cleaner",
-      label: "Cleaner",
-      icon: <Eraser size={22} strokeWidth={2.5} />,
-    },
-    {
-      id: "shred",
-      label: "Shredder",
-      icon: <Trash2 size={22} strokeWidth={2.5} />,
-    },
+    { id: "notes", label: "Notes", icon: <StickyNote size={22} strokeWidth={2.5} /> },
+    { id: "vault", label: "Passwords", icon: <Key size={22} strokeWidth={2.5} /> },
+    { id: "clipboard", label: "Clipboard", icon: <ClipboardList size={22} strokeWidth={2.5} /> },
+    { id: "breach", label: "Breach Check", icon: <Radar size={22} strokeWidth={2.5} /> },
+    { id: "cleaner", label: "Cleaner", icon: <Eraser size={22} strokeWidth={2.5} /> },
+    { id: "shred", label: "Shredder", icon: <Trash2 size={22} strokeWidth={2.5} /> },
   ];
 
   // Close menus when clicking outside
@@ -85,10 +51,7 @@ export function Sidebar({
       if (helpRef.current && !helpRef.current.contains(event.target as Node)) {
         setShowHelpMenu(false);
       }
-      if (
-        optionsRef.current &&
-        !optionsRef.current.contains(event.target as Node)
-      ) {
+      if (optionsRef.current && !optionsRef.current.contains(event.target as Node)) {
         setShowOptionsMenu(false);
       }
     }
@@ -98,15 +61,11 @@ export function Sidebar({
 
   return (
     <div className="sidebar">
-      <div
-        className="sidebar-header"
-        onClick={() => setTab("home")}
-        style={{ cursor: "pointer" }}
-      >
+      <div className="sidebar-header" onClick={() => setTab("home")} style={{cursor: "pointer"}}>
         <Fingerprint size={32} color="var(--accent)" strokeWidth={2} />
         <span className="app-title">QRE Toolkit</span>
       </div>
-
+      
       <div className="nav-links">
         {tabs.map((t) => (
           <button
@@ -120,142 +79,96 @@ export function Sidebar({
         ))}
       </div>
 
+      {/* Spacer pushes everything down */}
       <div style={{ marginTop: "auto" }}></div>
 
-      {/* --- HELP MENU --- */}
+      {/* --- HELP MENU (Flyout) --- */}
       <div style={{ position: "relative", width: "100%" }} ref={helpRef}>
+        
         {showHelpMenu && (
           <div className="help-menu">
-            <div
-              className="dropdown-item"
-              onClick={() => {
-                setShowHelpMenu(false);
-                onOpenHelpModal();
-              }}
-            >
+            <div className="dropdown-item" onClick={() => { setShowHelpMenu(false); onOpenHelpModal(); }}>
               <BookOpen size={16} /> Help Topics
             </div>
-            <div
-              className="dropdown-item"
-              onClick={async () => {
-                setShowHelpMenu(false);
-                try {
-                  await openUrl(
-                    "https://github.com/powergr/qre-privacy-toolkit/",
-                  );
-                } catch (e) {
-                  console.error(e);
-                }
-              }}
-            >
+            <div className="dropdown-item" onClick={async () => { 
+                setShowHelpMenu(false); 
+                try { await openUrl("https://github.com/powergr/qre-privacy-toolkit/"); } catch(e) { console.error(e); } 
+            }}>
               <GithubIcon size={16} /> GitHub Page
             </div>
             <div className="dropdown-divider"></div>
-            <div
-              className="dropdown-item"
-              onClick={() => {
-                setShowHelpMenu(false);
-                onOpenAboutModal();
-              }}
-            >
+            <div className="dropdown-item" onClick={() => { setShowHelpMenu(false); onOpenAboutModal(); }}>
               <Info size={16} /> About
             </div>
           </div>
         )}
-        <button
-          className={`nav-btn ${showHelpMenu ? "menu-open" : ""}`}
-          onClick={() => setShowHelpMenu(!showHelpMenu)}
-          style={{ marginBottom: 5 }}
+
+        <button 
+          className={`nav-btn ${showHelpMenu ? "menu-open" : ""}`} 
+          onClick={() => { setShowHelpMenu(!showHelpMenu); setShowOptionsMenu(false); }}
+          style={{ marginBottom: 5, justifyContent: "space-between" }}
         >
-          <CircleHelp size={22} strokeWidth={2.5} />
-          <span>Help</span>
+          <div style={{display:"flex", gap:15, alignItems:"center"}}>
+             <CircleHelp size={22} strokeWidth={2.5} />
+             <span>Help</span>
+          </div>
+          {/* Chevron indicator */}
+          {showHelpMenu && <ChevronRight size={16} style={{opacity: 0.7}} />}
         </button>
       </div>
 
-      {/* --- OPTIONS MENU --- */}
+      {/* --- OPTIONS MENU (Flyout) --- */}
       <div style={{ position: "relative", width: "100%" }} ref={optionsRef}>
+        
         {showOptionsMenu && (
           <div className="help-menu">
-            <div
-              className="dropdown-item"
-              onClick={() => {
-                setShowOptionsMenu(false);
-                onTheme();
-              }}
-            >
+            <div className="dropdown-item" onClick={() => { setShowOptionsMenu(false); onTheme(); }}>
               <Monitor size={16} /> Theme
             </div>
-            <div
-              className="dropdown-item"
-              onClick={() => {
-                setShowOptionsMenu(false);
-                onBackup();
-              }}
-            >
+            <div className="dropdown-item" onClick={() => { setShowOptionsMenu(false); onBackup(); }}>
               <Download size={16} /> Backup Keychain
             </div>
             <div className="dropdown-divider"></div>
-            <div
-              className="dropdown-item"
-              onClick={() => {
-                setShowOptionsMenu(false);
-                onChangePassword();
-              }}
-            >
+            <div className="dropdown-item" onClick={() => { setShowOptionsMenu(false); onChangePassword(); }}>
               <Key size={16} /> Change Password
             </div>
-            <div
-              className="dropdown-item"
-              onClick={() => {
-                setShowOptionsMenu(false);
-                onReset2FA();
-              }}
-            >
+            <div className="dropdown-item" onClick={() => { setShowOptionsMenu(false); onReset2FA(); }}>
               <RotateCcw size={16} color="var(--warning)" /> Reset 2FA Code
             </div>
           </div>
         )}
-        <button
-          className={`nav-btn ${showOptionsMenu ? "menu-open" : ""}`}
-          onClick={() => setShowOptionsMenu(!showOptionsMenu)}
-          style={{ marginBottom: 5 }}
+
+        <button 
+          className={`nav-btn ${showOptionsMenu ? "menu-open" : ""}`} 
+          onClick={() => { setShowOptionsMenu(!showOptionsMenu); setShowHelpMenu(false); }}
+          style={{ marginBottom: 5, justifyContent: "space-between" }}
         >
-          <Settings size={22} strokeWidth={2.5} />
-          <span>Options</span>
+          <div style={{display:"flex", gap:15, alignItems:"center"}}>
+            <Settings size={22} strokeWidth={2.5} />
+            <span>Options</span>
+          </div>
+          {/* Chevron indicator */}
+          {showOptionsMenu && <ChevronRight size={16} style={{opacity: 0.7}} />}
         </button>
       </div>
 
-      <button
-        className="nav-btn"
+      {/* --- LOG OUT --- */}
+      <button 
+        className="nav-btn" 
         onClick={onLogout}
-        style={{ color: "#d94040" }}
+        style={{ color: "#d94040", marginTop: 5 }}
       >
         <LogOut size={22} strokeWidth={2.5} />
         <span>Log Out</span>
       </button>
+
     </div>
   );
 }
 
-function GithubIcon({
-  size = 24,
-  color = "currentColor",
-}: {
-  size?: number;
-  color?: string;
-}) {
+function GithubIcon({ size = 24, color = "currentColor" }: { size?: number; color?: string }) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={color}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
       <path d="M9 18c-4.51 2-5-2-7-2" />
     </svg>

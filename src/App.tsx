@@ -25,6 +25,7 @@ import { VaultView } from "./components/views/VaultView";
 import { NotesView } from "./components/views/NotesView";
 import { BreachView } from "./components/views/BreachView";
 import { CleanerView } from "./components/views/CleanerView";
+import { ClipboardView} from "./components/views/ClipboardView";
 
 // Auth & Modals
 import { AuthOverlay } from "./components/auth/AuthOverlay";
@@ -173,6 +174,7 @@ function App() {
         {activeTab === "notes" && <NotesView />}
         {activeTab === "breach" && <BreachView />}
         {activeTab === "cleaner" && <CleanerView />}
+        {activeTab === "clipboard" && <ClipboardView />}
       </div>
 
       {/* --- GLOBAL MODALS --- */}

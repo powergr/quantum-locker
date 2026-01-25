@@ -1,10 +1,11 @@
 import React, { useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { X, BookOpen } from "lucide-react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { invoke } from "@tauri-apps/api/core";
 // @ts-ignore
 import helpContent from "../../assets/HELP.md?raw";
 
+// 1. Helper to extract raw text from React children (removes HTML tags/components)
 function extractText(children: any): string {
   if (typeof children === "string") return children;
   if (Array.isArray(children)) return children.map(extractText).join("");
@@ -12,37 +13,45 @@ function extractText(children: any): string {
   return "";
 }
 
+// 2. Convert text to ID (Must match the links in HELP.md)
+// Example: "🔐 File Encryption" -> "-file-encryption"
 function slugify(text: string): string {
   return text
     .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^\w\-]+/g, "")
-    .replace(/\-\-+/g, "-")
-    .replace(/^-+/, "")
-    .replace(/-+$/, "");
+    .replace(/\s+/g, "-") // Spaces to dashes
+    .replace(/[^\w\-]+/g, "") // Remove emojis and non-word chars
+    .replace(/\-\-+/g, "-") // Collapse multiple dashes
+    .replace(/^-+/, "") // Trim leading dash (optional, but keeps it clean)
+    .replace(/-+$/, ""); // Trim trailing dash
 }
 
 export function HelpModal({ onClose }: { onClose: () => void }) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // 3. Custom Link Click Handler
   const handleLinkClick = async (
     e: React.MouseEvent<HTMLAnchorElement>,
     href: string
   ) => {
+    // A. External Links (Http) -> Open in Browser
     if (href.startsWith("http")) {
       e.preventDefault();
       try {
-        await openUrl(href);
+        await invoke("plugin:opener|open", { path: href });
       } catch (err) {
         console.error("Link Error:", err);
       }
       return;
     }
 
-    // 2. Handle Internal Anchors
+    // B. Internal Links (Anchors) -> Scroll to ID
     if (href.startsWith("#")) {
       e.preventDefault();
-      const id = href.substring(1);
+      
+      // Clean up the href to match the ID format
+      // Note: If HELP.md has (#-file-encryption), we look for id="-file-encryption"
+      const id = href.substring(1); 
+      
       const element = document.getElementById(id);
       const container = scrollContainerRef.current;
 
@@ -52,17 +61,19 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
           top: topPos,
           behavior: "smooth",
         });
+      } else {
+        console.warn(`Target ID not found: ${id}`);
       }
     }
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={onClose} style={{zIndex: 200000}}>
       <div
         className="auth-card"
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 650,
+          width: 700,
           maxWidth: "95vw",
           height: "85vh",
           display: "flex",
@@ -89,15 +100,17 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
           <div className="markdown-content">
             <ReactMarkdown
               components={{
+                // CUSTOM H2 RENDERER: Attaches ID so links work
                 h2: ({ node, children, ...props }) => {
                   const text = extractText(children);
-                  const id = slugify(text);
+                  const id = slugify(text); // Generates ID
                   return (
                     <h2 id={id} {...props} style={{ scrollMarginTop: "20px" }}>
                       {children}
                     </h2>
                   );
                 },
+                // CUSTOM H3 RENDERER
                 h3: ({ node, children, ...props }) => {
                   const text = extractText(children);
                   const id = slugify(text);
@@ -107,6 +120,7 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
                     </h3>
                   );
                 },
+                // CUSTOM LINK RENDERER
                 a: ({ node, href, children, ...props }) => {
                   return (
                     <a
@@ -130,9 +144,7 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        <div
-          style={{ padding: "15px 25px", borderTop: "1px solid var(--border)" }}
-        >
+        <div style={{ padding: "15px 25px", borderTop: "1px solid var(--border)" }}>
           <button
             className="secondary-btn"
             style={{ width: "100%" }}
