@@ -113,5 +113,38 @@ If you lose your **Master Password** AND your **Recovery Code**, your data is ma
 
 ---
 
+## Download Security
+
+### Windows SmartScreen Warning
+
+You may see "Windows protected your PC" when running QRE Locker.
+
+**Why this happens:**
+
+- QRE Locker is not yet code-signed (we're working on it)
+- Microsoft requires paid certificates ($200-500/year)
+- As an open-source project, we're applying for free signing
+
+**How to verify your download is safe:**
+
+1. Check SHA-256 hash matches release page
+2. Review source code (fully open source)
+3. Scan with VirusTotal
+
+**To run anyway:**
+
+1. Click "More info"
+2. Click "Run anyway"
+
+We're working with SignPath.io to get free code signing for open-source
+projects. Once approved, future releases will be signed.
+
+### Why Trust QRE Locker?
+
+- ✓ Fully open source (MIT license)
+- ✓ Active development on GitHub
+- ✓ Community reviewed
+
 **License:** MIT
+
 **Copyright:** © 2026 Project QRE
