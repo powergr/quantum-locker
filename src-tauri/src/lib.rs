@@ -13,7 +13,8 @@ mod vault;
 mod wordlist;
 mod breach;
 mod cleaner;
-mod email;
+mod qr;
+mod bookmarks;
 
 use state::SessionState;
 use std::sync::{Arc, Mutex};
@@ -96,6 +97,9 @@ pub fn run() {
             commands::analyze_file_metadata,
             commands::clean_file_metadata,
             commands::check_password_breach,
+            commands::generate_qr_code,
+            commands::load_bookmarks_vault,
+            commands::save_bookmarks_vault,
             // Clipboard
             commands::add_clipboard_entry,
             commands::load_clipboard_vault,

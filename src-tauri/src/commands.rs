@@ -21,7 +21,9 @@ use crate::clipboard_store::{ClipboardVault};
 use crate::cleaner::{self, MetadataReport};
 use crate::wordlist::WORDLIST;
 use rand::RngCore;
-
+use crate::breach;
+use crate::qr;
+use crate::bookmarks::BookmarksVault;
 type CommandResult<T> = Result<T, String>;
 
 #[derive(serde::Serialize)]
@@ -71,10 +73,73 @@ pub async fn clean_file_metadata(path: String) -> CommandResult<String> {
     Ok(out_path.to_string_lossy().to_string())
 }
 
-// --- PASSWORD BREACH CHECK (RESTORED) ---
+// --- BOOKMARKS COMMANDS ---
+
 #[tauri::command]
-pub async fn check_password_breach(password: String) -> CommandResult<crate::breach::BreachResult> {
-    crate::breach::check_pwned(&password).await.map_err(|e| e.to_string())
+pub fn load_bookmarks_vault(app: AppHandle, state: tauri::State<SessionState>) -> CommandResult<BookmarksVault> {
+    let master_key = {
+        let guard = state.master_key.lock().unwrap();
+        match &*guard {
+            Some(mk) => mk.clone(),
+            None => return Err("Vault is locked".to_string()),
+        }
+    };
+
+    let path = resolve_keychain_path(&app)?.parent().unwrap().join("bookmarks.qre");
+    
+    if !path.exists() {
+        return Ok(BookmarksVault::new());
+    }
+
+    let container = crypto::EncryptedFileContainer::load(path.to_str().unwrap())
+        .map_err(|e| e.to_string())?;
+        
+    let payload = crypto::decrypt_file_with_master_key(&master_key, None, &container)
+        .map_err(|e| e.to_string())?;
+
+    let vault: BookmarksVault = serde_json::from_slice(&payload.content)
+        .map_err(|_| "Failed to parse bookmarks data".to_string())?;
+
+    Ok(vault)
+}
+
+#[tauri::command]
+pub fn save_bookmarks_vault(
+    app: AppHandle, 
+    state: tauri::State<SessionState>, 
+    vault: BookmarksVault
+) -> CommandResult<()> {
+    let master_key = {
+        let guard = state.master_key.lock().unwrap();
+        match &*guard {
+            Some(mk) => mk.clone(),
+            None => return Err("Vault is locked".to_string()),
+        }
+    };
+
+    let path = resolve_keychain_path(&app)?.parent().unwrap().join("bookmarks.qre");
+    
+    let json_data = serde_json::to_vec(&vault).map_err(|e| e.to_string())?;
+    
+    let container = crypto::encrypt_file_with_master_key(
+        &master_key, None, "bookmarks.json", &json_data, None, 3
+    ).map_err(|e| e.to_string())?;
+
+    container.save(path.to_str().unwrap()).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+// --- QR CODE COMMAND ---
+#[tauri::command]
+pub fn generate_qr_code(text: String) -> CommandResult<String> {
+    qr::generate_qr(&text).map_err(|e| e.to_string())
+}
+
+// --- PASSWORD BREACH CHECK (Restore this) ---
+#[tauri::command]
+pub async fn check_password_breach(password: String) -> CommandResult<breach::BreachResult> {
+    breach::check_pwned(&password).await.map_err(|e| e.to_string())
 }
 
 // --- PASSWORD GENERATOR (RESTORED) ---

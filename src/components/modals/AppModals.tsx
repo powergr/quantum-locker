@@ -14,7 +14,7 @@ import {
   XCircle,
   Download,
   CheckCircle,
-  FileX, // <--- ADDED THIS IMPORT
+  FileX,
 } from "lucide-react";
 import { PasswordInput } from "../common/PasswordInput";
 
@@ -625,7 +625,7 @@ export function AboutModal({ onClose }: { onClose: () => void }) {
       <div className="auth-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <Info size={20} color="var(--accent)" />
-          <h2>About QRE Toolkit</h2>
+          <h2>About QRE Privacy Toolkit</h2>
           <div style={{ flex: 1 }}></div>
           <X size={20} style={{ cursor: "pointer" }} onClick={onClose} />
         </div>
@@ -642,7 +642,10 @@ export function AboutModal({ onClose }: { onClose: () => void }) {
           >
             The local-first privacy suite.
             <br />
-            Secure Encryption • Password Vault • File Shredder
+            <br></br>
+            Secure Encryption • Password Vault • File Shredder Notes Vault •
+            Clipboard Manager • Breach Check Metadata Cleaner • Secure Bookmarks
+            • QR Generator
           </p>
 
           <p

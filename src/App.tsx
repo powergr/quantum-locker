@@ -25,7 +25,9 @@ import { VaultView } from "./components/views/VaultView";
 import { NotesView } from "./components/views/NotesView";
 import { BreachView } from "./components/views/BreachView";
 import { CleanerView } from "./components/views/CleanerView";
-import { ClipboardView} from "./components/views/ClipboardView";
+import { ClipboardView } from "./components/views/ClipboardView";
+import { QrView } from "./components/views/QrView";
+import { BookmarksView } from "./components/views/BookmarksView";
 
 // Auth & Modals
 import { AuthOverlay } from "./components/auth/AuthOverlay";
@@ -175,6 +177,8 @@ function App() {
         {activeTab === "breach" && <BreachView />}
         {activeTab === "cleaner" && <CleanerView />}
         {activeTab === "clipboard" && <ClipboardView />}
+        {activeTab === "qr" && <QrView />}
+        {activeTab === "bookmarks" && <BookmarksView />}
       </div>
 
       {/* --- GLOBAL MODALS --- */}
