@@ -19,12 +19,26 @@ pub struct VaultEntry {
     /// The secret password.
     pub password: String,
     
-    /// Optional free-text notes for extra details (e.g., "Security Question answer").
+    /// Optional free-text notes.
     pub notes: String,
     
     /// Timestamp (Unix Epoch) of when this entry was created.
-    /// Used for sorting the list in the UI.
     pub created_at: i64,
+
+    // --- NEW FIELDS (v2.5.5) ---
+    // We use #[serde(default)] so existing vaults don't crash when loading.
+    
+    /// The website URL (e.g., "https://google.com").
+    #[serde(default)]
+    pub url: String,
+
+    /// The visual card color (Hex Code).
+    #[serde(default)]
+    pub color: String,
+
+    /// Whether the entry is pinned to the top.
+    #[serde(default)]
+    pub is_pinned: bool,
 }
 
 /// The root container for the Password Manager.

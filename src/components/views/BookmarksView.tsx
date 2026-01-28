@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Trash2,
   Bookmark,
@@ -7,13 +7,24 @@ import {
   Import,
   Search,
   Download,
-  X,
+  Pin,
+  PinOff,
 } from "lucide-react";
 import { useBookmarks, BookmarkEntry } from "../../hooks/useBookmarks";
 import { EntryDeleteModal, InfoModal } from "../modals/AppModals";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { platform } from "@tauri-apps/plugin-os";
+
+// Reuse colors from Vault for consistency
+const BRAND_COLORS = [
+  "#10b981", // Default Green
+  "#E50914", // Red
+  "#1DA1F2", // Blue
+  "#F25022", // Orange
+  "#8e44ad", // Purple
+  "#555555", // Grey
+];
 
 export function BookmarksView() {
   const { entries, loading, saveBookmark, deleteBookmark, refreshVault } =
@@ -79,13 +90,48 @@ export function BookmarksView() {
   const getInitial = (title: string) =>
     title ? title.charAt(0).toUpperCase() : "?";
 
-  // --- FILTERING ---
-  const filteredEntries = entries.filter(
-    (entry) =>
-      entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.category.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  // --- FILTER & SORT ---
+  const filteredEntries = useMemo(() => {
+    let filtered = entries;
+
+    // 1. Search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = entries.filter(
+        (entry) =>
+          entry.title.toLowerCase().includes(q) ||
+          entry.url.toLowerCase().includes(q) ||
+          entry.category.toLowerCase().includes(q),
+      );
+    }
+
+    // 2. Sort: Pinned First > Date Created
+    return [...filtered].sort((a, b) => {
+      const aPin = a.is_pinned || false;
+      const bPin = b.is_pinned || false;
+
+      if (aPin && !bPin) return -1;
+      if (!aPin && bPin) return 1;
+      return b.created_at - a.created_at;
+    });
+  }, [entries, searchQuery]);
+
+  // --- SHARED STYLES ---
+  const commonButtonStyle = {
+    height: "42px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "0 20px",
+    borderRadius: "8px",
+    fontSize: "0.95rem",
+    fontWeight: 500,
+    cursor: "pointer",
+    boxSizing: "border-box" as const,
+    whiteSpace: "nowrap" as const,
+    margin: 0, // FIXED: Force no margin to prevent misalignment
+  };
 
   if (loading)
     return (
@@ -97,80 +143,36 @@ export function BookmarksView() {
   return (
     <div className="vault-view">
       {/* --- HEADER --- */}
-      <div
-        className="vault-header"
-        style={{
-          flexDirection: "column",
-          alignItems: "flex-start",
-          gap: 15,
-          marginBottom: 20,
-        }}
-      >
-        {/* Top Row: Title + Stats */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            width: "100%",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <h2 style={{ margin: 0 }}>Secure Bookmarks</h2>
-            <p
-              style={{
-                margin: 0,
-                fontSize: "0.9rem",
-                color: "var(--text-dim)",
-              }}
-            >
-              {entries.length} private links stored.
-            </p>
-          </div>
+      <div className="vault-header">
+        {/* Title Section */}
+        <div>
+          <h2 style={{ margin: 0 }}>Secure Bookmarks</h2>
+          <p
+            style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-dim)" }}
+          >
+            {entries.length} private links stored.
+          </p>
         </div>
 
-        {/* Bottom Row: Search + Actions */}
-        <div style={{ display: "flex", gap: 10, width: "100%" }}>
-          {/* Search Input */}
+        {/* Unified Right Side: Search + Actions */}
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          {/* Search Bar */}
           <div
-            style={{
-              flex: 1,
-              position: "relative",
-              display: "flex",
-              alignItems: "center",
-            }}
+            className="search-container"
+            style={{ width: "300px", margin: 0 }}
           >
-            <Search
-              size={16}
-              style={{
-                position: "absolute",
-                left: 12,
-                color: "var(--text-dim)",
-              }}
-            />
+            <Search size={18} className="search-icon" />
             <input
-              className="auth-input"
-              style={{
-                paddingLeft: 38,
-                height: 42,
-                background: "var(--panel-bg)",
-              }}
+              className="search-input"
               placeholder="Search bookmarks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                height: "42px",
+                boxSizing: "border-box",
+                margin: 0, // FIXED: Force no margin
+              }}
             />
-            {searchQuery && (
-              <X
-                size={16}
-                style={{
-                  position: "absolute",
-                  right: 12,
-                  cursor: "pointer",
-                  color: "var(--text-dim)",
-                }}
-                onClick={() => setSearchQuery("")}
-              />
-            )}
           </div>
 
           {/* Import Button - HIDE ON ANDROID */}
@@ -178,17 +180,16 @@ export function BookmarksView() {
             <button
               className="secondary-btn"
               onClick={() => setShowImportModal(true)}
+              title="Import from Browser"
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginTop: 0,
-                height: 42,
-                borderRadius: "8px",
-                padding: "0 20px",
+                ...commonButtonStyle,
+                border: "1px solid var(--border)",
+                background: "var(--bg-card)",
+                color: "var(--text-main)",
               }}
             >
-              <Import size={18} /> <span className="hide-mobile">Import</span>
+              <Import size={18} />
+              <span>Import</span>
             </button>
           )}
 
@@ -196,16 +197,25 @@ export function BookmarksView() {
           <button
             className="header-action-btn"
             onClick={() =>
-              setEditing({ title: "", url: "", category: "General" })
+              setEditing({
+                title: "",
+                url: "",
+                category: "General",
+                color: BRAND_COLORS[0],
+                is_pinned: false,
+              })
             }
-            style={{ marginTop: 0, height: 42 }}
+            style={{
+              ...commonButtonStyle,
+              border: "1px solid transparent",
+            }}
           >
             Add New
           </button>
         </div>
       </div>
 
-      {/* --- EMPTY STATE (Search or Total) --- */}
+      {/* --- EMPTY STATE --- */}
       {entries.length === 0 ? (
         <div
           style={{
@@ -227,9 +237,11 @@ export function BookmarksView() {
             <Bookmark size={48} style={{ opacity: 0.5 }} />
           </div>
           <p>No bookmarks yet.</p>
-          <p style={{ fontSize: "0.8rem" }}>
-            Click "Import" to load from Chrome/Edge.
-          </p>
+          {!isAndroid && (
+            <p style={{ fontSize: "0.8rem" }}>
+              Click the Import button to load from Chrome/Edge.
+            </p>
+          )}
         </div>
       ) : filteredEntries.length === 0 ? (
         <div
@@ -245,110 +257,135 @@ export function BookmarksView() {
 
       {/* --- GRID --- */}
       <div className="modern-grid">
-        {filteredEntries.map((entry) => (
-          <div
-            key={entry.id}
-            className="modern-card"
-            style={{ height: "auto", minHeight: 160 }}
-            onClick={() => setEditing(entry)}
-          >
-            <div style={{ display: "flex", gap: 15 }}>
-              {/* Visual Icon */}
-              <div
-                style={{
-                  width: 50,
-                  height: 50,
-                  borderRadius: 12,
-                  background:
-                    "linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05))",
-                  color: "#10b981",
-                  border: "1px solid rgba(16, 185, 129, 0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "1.4rem",
-                  fontWeight: "bold",
-                  flexShrink: 0,
-                }}
-              >
-                {getInitial(entry.title)}
-              </div>
+        {filteredEntries.map((entry) => {
+          const isPinned = entry.is_pinned || false;
+          const entryColor = entry.color || BRAND_COLORS[0];
 
-              <div style={{ flex: 1, overflow: "hidden" }}>
+          return (
+            <div
+              key={entry.id}
+              className={`modern-card ${isPinned ? "pinned" : ""}`}
+              style={{ height: "auto", minHeight: 160, position: "relative" }}
+              onClick={() => setEditing(entry)}
+            >
+              {/* Pinned Icon Overlay */}
+              {isPinned && (
+                <Pin
+                  size={16}
+                  className="pinned-icon-corner"
+                  fill="currentColor"
+                />
+              )}
+
+              <div style={{ display: "flex", gap: 15 }}>
+                {/* Visual Icon with Color */}
                 <div
                   style={{
+                    width: 50,
+                    height: 50,
+                    borderRadius: 12,
+                    backgroundColor: entryColor,
+                    color: "white",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "1.4rem",
                     fontWeight: "bold",
-                    fontSize: "1.05rem",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    color: "var(--text-main)",
+                    flexShrink: 0,
+                    boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
                   }}
                 >
-                  {entry.title}
+                  {getInitial(entry.title)}
                 </div>
-                <div
-                  style={{
-                    fontSize: "0.85rem",
-                    color: "var(--text-dim)",
-                    marginTop: 2,
-                  }}
-                >
-                  {getDomain(entry.url)}
-                </div>
-                <div style={{ marginTop: 8 }}>
-                  <span
+
+                <div style={{ flex: 1, overflow: "hidden" }}>
+                  <div
                     style={{
-                      fontSize: "0.7rem",
-                      background: "var(--highlight)",
-                      padding: "3px 8px",
-                      borderRadius: 4,
-                      color: "var(--text-dim)",
-                      textTransform: "uppercase",
                       fontWeight: "bold",
+                      fontSize: "1.05rem",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      color: "var(--text-main)",
                     }}
                   >
-                    {entry.category}
-                  </span>
+                    {entry.title}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "0.85rem",
+                      color: "var(--text-dim)",
+                      marginTop: 2,
+                    }}
+                  >
+                    {getDomain(entry.url)}
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    <span
+                      style={{
+                        fontSize: "0.7rem",
+                        background: "var(--highlight)",
+                        padding: "3px 8px",
+                        borderRadius: 4,
+                        color: "var(--text-dim)",
+                        textTransform: "uppercase",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {entry.category}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
-              <button
-                className="auth-btn"
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  fontSize: "0.9rem",
-                  padding: "8px",
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openLink(entry.url);
-                }}
-              >
-                <ExternalLink size={16} /> Open
-              </button>
-              <button
-                className="icon-btn-ghost danger"
-                title="Delete Bookmark"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setItemToDelete(entry);
-                }}
-              >
-                <Trash2 size={18} />
-              </button>
+              <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
+                <button
+                  className="auth-btn"
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    fontSize: "0.9rem",
+                    padding: "8px",
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openLink(entry.url);
+                  }}
+                >
+                  <ExternalLink size={16} /> Open
+                </button>
+
+                {/* Quick Pin Toggle */}
+                <button
+                  className="icon-btn-ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    saveBookmark({ ...entry, is_pinned: !isPinned });
+                  }}
+                >
+                  {isPinned ? <PinOff size={18} /> : <Pin size={18} />}
+                </button>
+
+                <button
+                  className="icon-btn-ghost danger"
+                  title="Delete Bookmark"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setItemToDelete(entry);
+                  }}
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* --- IMPORT CONFIRMATION MODAL (CUSTOM) --- */}
+      {/* --- IMPORT MODAL --- */}
       {showImportModal && (
         <div className="modal-overlay" style={{ zIndex: 100005 }}>
           <div className="auth-card" onClick={(e) => e.stopPropagation()}>
@@ -368,7 +405,6 @@ export function BookmarksView() {
                 }}
               >
                 This will copy your browser bookmarks into your encrypted vault.
-                Your original bookmarks are not affected.
               </p>
               <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
                 <button
@@ -396,28 +432,49 @@ export function BookmarksView() {
       {editing && (
         <div className="modal-overlay">
           <div className="auth-card" onClick={(e) => e.stopPropagation()}>
-            <h3
+            <div
               style={{
-                textAlign: "center",
-                width: "100%",
+                display: "flex",
+                justifyContent: "center",
                 marginBottom: 20,
-                marginTop: 0,
+                marginTop: 15,
+                position: "relative",
               }}
             >
-              {editing.id ? "Edit Bookmark" : "Add Bookmark"}
-            </h3>
+              <h3 style={{ margin: 0 }}>
+                {editing.id ? "Edit Bookmark" : "Add Bookmark"}
+              </h3>
+              {/* Pin Toggle in Editor */}
+              <button
+                className="icon-btn-ghost"
+                title={(editing as any).is_pinned ? "Unpin" : "Pin"}
+                onClick={() =>
+                  setEditing({
+                    ...editing,
+                    is_pinned: !(editing as any).is_pinned,
+                  })
+                }
+                style={{
+                  color: (editing as any).is_pinned
+                    ? "#ffd700"
+                    : "var(--text-dim)",
+                  position: "absolute",
+                  right: 0,
+                }}
+              >
+                <Pin
+                  size={20}
+                  fill={(editing as any).is_pinned ? "currentColor" : "none"}
+                />
+              </button>
+            </div>
 
             <div
               className="modal-body"
               style={{ display: "flex", flexDirection: "column", gap: 15 }}
             >
-              <div
-                style={{
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
+              {/* Title */}
+              <div style={{ position: "relative" }}>
                 <input
                   className="auth-input"
                   placeholder="Title (e.g. My Bank)"
@@ -429,6 +486,7 @@ export function BookmarksView() {
                 />
               </div>
 
+              {/* URL */}
               <div
                 style={{
                   position: "relative",
@@ -455,6 +513,7 @@ export function BookmarksView() {
                 />
               </div>
 
+              {/* Category */}
               <input
                 className="auth-input"
                 placeholder="Category (e.g. Finance)"
@@ -464,6 +523,26 @@ export function BookmarksView() {
                 }
               />
 
+              {/* Color Picker */}
+              <div>
+                <label
+                  style={{ fontSize: "0.85rem", color: "var(--text-dim)" }}
+                >
+                  Color Label
+                </label>
+                <div className="color-picker">
+                  {BRAND_COLORS.map((c) => (
+                    <div
+                      key={c}
+                      className={`color-dot ${(editing as any).color === c ? "selected" : ""}`}
+                      style={{ backgroundColor: c }}
+                      onClick={() => setEditing({ ...editing, color: c })}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Actions */}
               <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
                 <button
                   className="auth-btn"
@@ -474,6 +553,7 @@ export function BookmarksView() {
                     if (finalUrl && !finalUrl.startsWith("http")) {
                       finalUrl = "https://" + finalUrl;
                     }
+
                     saveBookmark({
                       ...editing,
                       created_at: editing.created_at || Date.now(),
@@ -481,6 +561,8 @@ export function BookmarksView() {
                       url: finalUrl,
                       title: editing.title || "New Link",
                       category: editing.category || "General",
+                      is_pinned: (editing as any).is_pinned || false,
+                      color: (editing as any).color || BRAND_COLORS[0],
                     } as BookmarkEntry);
                     setEditing(null);
                   }}

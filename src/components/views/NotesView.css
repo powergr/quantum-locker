@@ -5,17 +5,85 @@
   padding: 30px;
   overflow-y: auto;
 }
+
 .notes-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
+  gap: 20px;
+}
+
+/* --- SEARCH BAR --- */
+.search-container {
+  position: relative;
+  flex: 1;
+  max-width: 400px;
+}
+
+.search-input {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  padding: 10px 15px 10px 40px; /* Left padding for icon */
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
+  outline: none;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+/* --- PINNED CARD STYLES --- */
+.note-card-modern.pinned {
+  border-color: rgba(255, 215, 0, 0.4); /* Gold tint */
+  background: linear-gradient(
+    to bottom right,
+    var(--bg-card),
+    rgba(255, 215, 0, 0.03)
+  );
+}
+
+.pinned-icon {
+  color: #ffd700; /* Gold */
+  margin-right: 5px;
+}
+
+/* --- LINE CLAMPING (Smart Preview) --- */
+.note-body {
+  margin-bottom: 15px;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap; /* Preserve line breaks */
+
+  /* Show max 4 lines, then ellipsis */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 3em; /* Ensure card has some height even if empty */
 }
 
 /* --- EDITOR TEXTAREA --- */
 .editor-textarea {
   width: 100%;
-  height: 400px; /* Taller editor */
+  height: 400px;
   background: var(--bg-color);
   color: var(--text-main);
   border: 1px solid var(--border);
@@ -24,7 +92,7 @@
   font-family: "Segoe UI", sans-serif;
   font-size: 1rem;
   line-height: 1.6;
-  resize: none; /* Disable resizing to fix the scrollbar artifact */
+  resize: none;
   outline: none;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }

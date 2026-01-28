@@ -7,6 +7,9 @@ export interface BookmarkEntry {
   url: string;
   category: string;
   created_at: number;
+  // --- New Fields ---
+  is_pinned?: boolean;
+  color?: string;
 }
 
 export interface BookmarksVault {
@@ -18,6 +21,7 @@ export function useBookmarks() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Load on mount
   useEffect(() => {
     refreshVault();
   }, []);
@@ -26,13 +30,15 @@ export function useBookmarks() {
     try {
       setLoading(true);
       const vault = await invoke<BookmarksVault>("load_bookmarks_vault");
-      // Sort: Category, then Title
+      // Initial sort: Pinned first, then Newest first
       setEntries(
-        vault.entries.sort(
-          (a, b) =>
-            a.category.localeCompare(b.category) ||
-            a.title.localeCompare(b.title),
-        ),
+        vault.entries.sort((a, b) => {
+          const aPin = a.is_pinned || false;
+          const bPin = b.is_pinned || false;
+          if (aPin && !bPin) return -1;
+          if (!aPin && bPin) return 1;
+          return b.created_at - a.created_at;
+        }),
       );
     } catch (e) {
       setError(String(e));
@@ -41,21 +47,31 @@ export function useBookmarks() {
     }
   }
 
-  async function saveBookmark(entry: BookmarkEntry) {
+  async function saveBookmark(bookmark: BookmarkEntry) {
     try {
+      // Optimistic update
       const newEntries = [...entries];
-      const index = newEntries.findIndex((e) => e.id === entry.id);
+      const index = newEntries.findIndex((e) => e.id === bookmark.id);
 
       if (index >= 0) {
-        newEntries[index] = entry;
+        newEntries[index] = bookmark;
       } else {
-        newEntries.unshift(entry);
+        newEntries.unshift(bookmark); // Add to top
       }
+
+      // Sort again to keep UI consistent immediately
+      newEntries.sort((a, b) => {
+        const aPin = a.is_pinned || false;
+        const bPin = b.is_pinned || false;
+        if (aPin && !bPin) return -1;
+        if (!aPin && bPin) return 1;
+        return b.created_at - a.created_at;
+      });
 
       await invoke("save_bookmarks_vault", { vault: { entries: newEntries } });
       setEntries(newEntries);
     } catch (e) {
-      setError("Failed to save: " + String(e));
+      setError("Failed to save bookmark: " + String(e));
     }
   }
 
@@ -65,7 +81,7 @@ export function useBookmarks() {
       await invoke("save_bookmarks_vault", { vault: { entries: newEntries } });
       setEntries(newEntries);
     } catch (e) {
-      setError("Failed to delete: " + String(e));
+      setError("Failed to delete bookmark: " + String(e));
     }
   }
 

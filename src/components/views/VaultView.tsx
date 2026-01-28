@@ -1,28 +1,87 @@
-import { useState } from "react";
-import { Copy, Eye, EyeOff, Trash2, Key, Globe, User } from "lucide-react";
+import { useState, useMemo } from "react";
+import {
+  Copy,
+  Eye,
+  EyeOff,
+  Trash2,
+  Key,
+  Globe,
+  User,
+  Search,
+  Pin,
+  PinOff,
+  Link as LinkIcon,
+} from "lucide-react";
 import { useVault, VaultEntry } from "../../hooks/useVault";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { InfoModal, EntryDeleteModal } from "../modals/AppModals";
 
+// Preset Brand Colors
+const BRAND_COLORS = [
+  "#555555", // Neutral (Default)
+  "#E50914", // Netflix Red
+  "#1DA1F2", // Twitter Blue
+  "#4267B2", // Facebook Blue
+  "#F25022", // Microsoft Orange
+  "#0F9D58", // Google Green
+  "#8e44ad", // Purple
+  "#f1c40f", // Yellow
+];
+
 export function VaultView() {
   const { entries, loading, saveEntry, deleteEntry } = useVault();
 
-  // State for modals and interaction
+  // State
   const [editing, setEditing] = useState<Partial<VaultEntry> | null>(null);
-  const [showPass, setShowPass] = useState<string | null>(null); // ID of entry to show password for
+  const [showPass, setShowPass] = useState<string | null>(null);
   const [copyModalMsg, setCopyModalMsg] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<VaultEntry | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
+  // --- FILTER & SORT LOGIC ---
+  const visibleEntries = useMemo(() => {
+    let filtered = entries;
+
+    // 1. Search Filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = entries.filter(
+        (e) =>
+          e.service.toLowerCase().includes(q) ||
+          e.username.toLowerCase().includes(q) ||
+          (e.url && e.url.toLowerCase().includes(q)),
+      );
+    }
+
+    // 2. Sort: Pinned First > Newest
+    return [...filtered].sort((a, b) => {
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
+      return b.created_at - a.created_at;
+    });
+  }, [entries, searchQuery]);
+
+  // --- HELPERS ---
   const handleCopy = async (text: string) => {
     await writeText(text);
     setCopyModalMsg("Password copied to clipboard.");
   };
 
-  // Helper to get initials (e.g. "Google" -> "G")
+  const generateStrongPassword = () => {
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    let pass = "";
+    const array = new Uint32Array(20);
+    crypto.getRandomValues(array);
+    for (let i = 0; i < 20; i++) {
+      pass += chars[array[i] % chars.length];
+    }
+    return pass;
+  };
+
   const getInitial = (name: string) =>
     name ? name.charAt(0).toUpperCase() : "?";
 
-  // --- LOADING STATE ---
   if (loading)
     return (
       <div style={{ padding: 40, color: "var(--text-dim)" }}>
@@ -39,79 +98,98 @@ export function VaultView() {
           <p
             style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-dim)" }}
           >
-            {entries.length} {entries.length === 1 ? "secret" : "secrets"}{" "}
-            stored securely.
+            {entries.length} secure login{entries.length !== 1 ? "s" : ""}.
           </p>
         </div>
+
+        {/* Search Bar */}
+        <div className="search-container">
+          <Search size={18} className="search-icon" />
+          <input
+            className="search-input"
+            placeholder="Search Logins..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
         <button
           className="header-action-btn"
           onClick={() =>
-            setEditing({ service: "", username: "", password: "", notes: "" })
+            setEditing({
+              service: "",
+              username: "",
+              password: "",
+              notes: "",
+              color: BRAND_COLORS[0],
+              is_pinned: false,
+            })
           }
         >
           Add New
         </button>
       </div>
 
-      {/* --- EMPTY STATE --- */}
-      {entries.length === 0 && (
+      {/* --- EMPTY STATES --- */}
+      {entries.length === 0 && !searchQuery && (
         <div
           style={{
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            height: "50vh",
+            height: "40vh",
             color: "var(--text-dim)",
             opacity: 0.7,
           }}
         >
-          <div
-            style={{
-              background: "var(--panel-bg)",
-              padding: 30,
-              borderRadius: "50%",
-              marginBottom: 20,
-              border: "1px solid var(--border)",
-            }}
-          >
-            <Key size={64} style={{ color: "var(--accent)" }} />
-          </div>
-          <h3 style={{ margin: "0 0 10px 0", color: "var(--text-main)" }}>
-            No Passwords Yet
-          </h3>
+          <Key size={64} style={{ marginBottom: 20, color: "var(--accent)" }} />
+          <h3>No Passwords Yet</h3>
           <p>Click "Add New" to store your first secret.</p>
         </div>
       )}
 
       {/* --- GRID OF CARDS --- */}
       <div className="modern-grid">
-        {entries.map((entry) => (
+        {visibleEntries.map((entry) => (
           <div
             key={entry.id}
-            className="modern-card"
+            className={`modern-card ${entry.is_pinned ? "pinned" : ""}`}
             onClick={() => setEditing(entry)}
+            style={{ position: "relative" }}
           >
-            {/* Top Row: Icon + Info + Delete */}
-            <div className="vault-service-row">
-              <div className="service-icon">{getInitial(entry.service)}</div>
-              <div className="service-info">
-                <div className="service-name">{entry.service}</div>
-                <div className="service-user">{entry.username}</div>
-              </div>
+            {/* Pinned Icon Overlay */}
+            {entry.is_pinned && (
+              <Pin
+                size={16}
+                className="pinned-icon-corner"
+                fill="currentColor"
+              />
+            )}
 
-              {/* Actions (visible on hover via CSS) */}
-              <div className="card-actions">
-                <button
-                  className="icon-btn-ghost danger"
-                  title="Delete"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setItemToDelete(entry);
+            {/* Top Row: Icon + Info */}
+            <div className="vault-service-row">
+              <div
+                className="service-icon"
+                style={{ backgroundColor: entry.color || BRAND_COLORS[0] }}
+              >
+                {getInitial(entry.service)}
+              </div>
+              <div className="service-info" style={{ overflow: "hidden" }}>
+                <div className="service-name" style={{ fontWeight: 600 }}>
+                  {entry.service}
+                </div>
+                <div
+                  className="service-user"
+                  style={{
+                    fontSize: "0.85rem",
+                    color: "var(--text-dim)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
                 >
-                  <Trash2 size={18} />
-                </button>
+                  {entry.username}
+                </div>
               </div>
             </div>
 
@@ -143,6 +221,30 @@ export function VaultView() {
                 <Copy size={16} />
               </button>
             </div>
+
+            {/* Hover Actions (Edit/Pin/Delete) */}
+            <div className="card-actions">
+              {/* Quick Pin Action */}
+              <button
+                className="icon-btn-ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  saveEntry({ ...entry, is_pinned: !entry.is_pinned });
+                }}
+              >
+                {entry.is_pinned ? <PinOff size={16} /> : <Pin size={16} />}
+              </button>
+
+              <button
+                className="icon-btn-ghost danger"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setItemToDelete(entry);
+                }}
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -151,17 +253,40 @@ export function VaultView() {
       {editing && (
         <div className="modal-overlay">
           <div className="auth-card" onClick={(e) => e.stopPropagation()}>
-            <h3
-              style={{ textAlign: "center", width: "100%", marginBottom: 20 }}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                marginBottom: 20,
+                position: "relative",
+              }}
             >
-              {editing.id ? "Edit Entry" : "Add New Entry"}
-            </h3>
+              <h3>{editing.id ? "Edit Entry" : "New Entry"}</h3>
+              {/* Pin Toggle in Editor */}
+              <button
+                className="icon-btn-ghost"
+                title={editing.is_pinned ? "Unpin" : "Pin"}
+                onClick={() =>
+                  setEditing({ ...editing, is_pinned: !editing.is_pinned })
+                }
+                style={{
+                  color: editing.is_pinned ? "#ffd700" : "var(--text-dim)",
+                  position: "absolute",
+                  right: 0,
+                }}
+              >
+                <Pin
+                  size={20}
+                  fill={editing.is_pinned ? "currentColor" : "none"}
+                />
+              </button>
+            </div>
 
             <div
               className="modal-body"
               style={{ display: "flex", flexDirection: "column", gap: 15 }}
             >
-              {/* Service Input */}
+              {/* Service */}
               <div
                 style={{
                   position: "relative",
@@ -180,7 +305,7 @@ export function VaultView() {
                 <input
                   className="auth-input"
                   style={{ paddingLeft: 40 }}
-                  placeholder="Service (e.g. Google)"
+                  placeholder="Service Name (e.g. Google)"
                   value={editing.service}
                   onChange={(e) =>
                     setEditing({ ...editing, service: e.target.value })
@@ -189,7 +314,7 @@ export function VaultView() {
                 />
               </div>
 
-              {/* Username Input */}
+              {/* Username */}
               <div
                 style={{
                   position: "relative",
@@ -216,8 +341,35 @@ export function VaultView() {
                 />
               </div>
 
-              {/* Password Input + Gen Button */}
-              <div className="password-wrapper">
+              {/* URL (New) */}
+              <div
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <LinkIcon
+                  size={16}
+                  style={{
+                    position: "absolute",
+                    left: 12,
+                    color: "var(--text-dim)",
+                  }}
+                />
+                <input
+                  className="auth-input"
+                  style={{ paddingLeft: 40 }}
+                  placeholder="Website URL (Optional)"
+                  value={editing.url || ""}
+                  onChange={(e) =>
+                    setEditing({ ...editing, url: e.target.value })
+                  }
+                />
+              </div>
+
+              {/* Password */}
+              <div className="vault-view-custom-password-wrapper">
                 <input
                   className="auth-input has-icon"
                   placeholder="Password"
@@ -227,25 +379,44 @@ export function VaultView() {
                   }
                 />
                 <button
-                  className="password-toggle"
-                  title="Generate Random Password"
+                  className="vault-view-custom-password-toggle"
+                  title="Generate Strong Password"
                   onClick={() =>
                     setEditing({
                       ...editing,
-                      password: crypto.randomUUID().slice(0, 18),
+                      password: generateStrongPassword(),
                     })
-                  } // Simple random gen
+                  }
                 >
                   <Key size={18} />
                 </button>
               </div>
 
+              {/* Color Picker */}
+              <div>
+                <label
+                  style={{ fontSize: "0.85rem", color: "var(--text-dim)" }}
+                >
+                  Card Color
+                </label>
+                <div className="color-picker">
+                  {BRAND_COLORS.map((c) => (
+                    <div
+                      key={c}
+                      className={`color-dot ${editing.color === c ? "selected" : ""}`}
+                      style={{ backgroundColor: c }}
+                      onClick={() => setEditing({ ...editing, color: c })}
+                    />
+                  ))}
+                </div>
+              </div>
+
               {/* Buttons */}
-              <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+              <div style={{ display: "flex", gap: 10, marginTop: 15 }}>
                 <button
                   className="auth-btn"
+                  style={{ flex: 1 }}
                   onClick={() => {
-                    // Force ID generation here if new
                     const finalId = editing.id || crypto.randomUUID();
                     saveEntry({
                       ...editing,
@@ -255,15 +426,18 @@ export function VaultView() {
                       username: editing.username || "",
                       password: editing.password || "",
                       notes: editing.notes || "",
+                      url: editing.url || "",
+                      color: editing.color || BRAND_COLORS[0],
+                      is_pinned: editing.is_pinned || false,
                     } as VaultEntry);
                     setEditing(null);
                   }}
                 >
                   Save
                 </button>
-
                 <button
                   className="secondary-btn"
+                  style={{ flex: 1 }}
                   onClick={() => setEditing(null)}
                 >
                   Cancel

@@ -17,6 +17,13 @@ pub struct BookmarkEntry {
     pub url: String,
     pub category: String,
     pub created_at: i64,
+
+    // --- NEW FIELDS (v2.5.5) ---
+    #[serde(default)]
+    pub is_pinned: bool,
+
+    #[serde(default)]
+    pub color: String, 
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -115,6 +122,8 @@ fn parse_node(node: &Value, category: &str, results: &mut Vec<BookmarkEntry>) {
                         url,
                         category: category.to_string(),
                         created_at: chrono::Utc::now().timestamp_millis(),
+                        is_pinned: false,
+                        color: "#10b981".to_string(), // Default Green
                     });
                 }
             } else if type_str == "folder" {

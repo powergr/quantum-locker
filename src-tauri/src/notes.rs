@@ -21,6 +21,11 @@ pub struct NoteEntry {
     
     /// Timestamp of last modification. Used for sorting.
     pub updated_at: i64,
+
+    /// Whether the note is pinned to the top.
+    /// Default to false for backward compatibility with existing vaults.
+    #[serde(default)]
+    pub is_pinned: bool,
 }
 
 /// The root container for the Secure Notes feature.

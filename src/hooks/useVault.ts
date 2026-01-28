@@ -6,7 +6,10 @@ export interface VaultEntry {
   service: string;
   username: string;
   password: string;
+  url?: string;
   notes: string;
+  color?: string;
+  is_pinned?: boolean;
   created_at: number;
 }
 
@@ -28,7 +31,7 @@ export function useVault() {
     try {
       setLoading(true);
       const vault = await invoke<PasswordVault>("load_password_vault");
-      // Sort by newest first
+      // Initial sort by newest
       setEntries(vault.entries.sort((a, b) => b.created_at - a.created_at));
     } catch (e) {
       setError(String(e));
